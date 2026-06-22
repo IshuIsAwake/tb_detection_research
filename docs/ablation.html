@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ablation Studies — TB Detection Research</title>
+  <meta name="description" content="Chronological YOLO experiment results for TB detection from chest X-rays." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">TB Detection</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="ablation.html" class="active">Ablation Studies</a></li>
+        <li><a href="literature.html">Literature Review</a></li>
+        <li><a href="data.html">Data</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <header class="page-header">
+    <p class="page-breadcrumb"><a href="index.html">Home</a> / Ablation Studies</p>
+    <h1 class="page-title">Ablation Studies</h1>
+    <p class="page-desc">
+      Systematic experiments tracking model performance over time.
+      Rows are in chronological order; click <strong>▼</strong> to expand full metrics and notes for any run.
+      Screening metrics shown at <code>conf=0.25</code> by default.
+    </p>
+  </header>
+
+  <main class="section">
+
+    <!-- ── Latest Experiment Hero ── -->
+    <p class="section-title">Latest Run</p>
+    <div class="latest-hero" id="latest-hero">
+      <div class="lh-header">
+        <div>
+          <div class="lh-id">exp2_neg0.25_512</div>
+          <div class="lh-desc">YOLOv8n · 512px · batch 16 · negatives 0.25:1 (70 sick + 70 healthy) · no augmentation</div>
+          <div class="lh-tags">
+            <span class="tag tag-blue">512 px</span>
+            <span class="tag tag-blue">batch 16</span>
+            <span class="tag tag-teal">+ negatives 0.25:1</span>
+            <span class="tag tag-amber">no aug</span>
+          </div>
+        </div>
+      </div>
+      <div class="lh-metrics">
+        <div class="lh-metric">
+          <div class="lh-metric-label">mAP50</div>
+          <div class="lh-metric-val warn">0.299</div>
+        </div>
+        <div class="lh-metric">
+          <div class="lh-metric-label">Box Precision</div>
+          <div class="lh-metric-val warn">0.292</div>
+        </div>
+        <div class="lh-metric">
+          <div class="lh-metric-label">Box Recall</div>
+          <div class="lh-metric-val bad">0.383</div>
+        </div>
+        <div class="lh-metric">
+          <div class="lh-metric-label">TB Caught @.25</div>
+          <div class="lh-metric-val bad">49/121</div>
+        </div>
+        <div class="lh-metric">
+          <div class="lh-metric-label">Healthy FA @.25</div>
+          <div class="lh-metric-val good">0.0%</div>
+        </div>
+        <div class="lh-metric">
+          <div class="lh-metric-label">Sick FA @.25</div>
+          <div class="lh-metric-val good">3.3%</div>
+        </div>
+        <div class="lh-metric">
+          <div class="lh-metric-label">Active mAP50</div>
+          <div class="lh-metric-val warn">0.504</div>
+        </div>
+        <div class="lh-metric">
+          <div class="lh-metric-label">Obsolete mAP50</div>
+          <div class="lh-metric-val bad">0.094</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── YOLO Experiments Table ── -->
+    <p class="section-title" style="margin-top:3.5rem;">YOLO Experiments</p>
+    <div class="table-wrapper">
+      <table class="exp-table" id="yolo-table">
+        <thead>
+          <tr>
+            <th>Experiment</th>
+            <th>Description</th>
+            <th class="right">mAP50</th>
+            <th class="right">Precision</th>
+            <th class="right">Recall</th>
+            <th class="right">TB Caught @.25</th>
+            <th class="right">Healthy FA @.25</th>
+            <th class="right">Sick FA @.25</th>
+            <th class="center">Train Time</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="exp-tbody">
+          <!-- rows injected by JS -->
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+
+  <script>
+  // ── Experiment data ──────────────────────────────────────────────────────
+  const experiments = [
+    {
+      id: "exp1a_512",
+      date: "2026-06-19",
+      desc: "YOLOv8n baseline · 512px · batch 16 · positives only · no aug",
+      tags: ["512 px", "batch 16", "pos-only", "no aug"],
+      config: { model:"YOLOv8n", imgsz:512, epochs:100, batch:16, aug:"off", amp:"off", negatives:"none", seed:0 },
+      detection: {
+        overall: { mAP50:0.3699, mAP50_95:0.1644, precision:0.3527, recall:0.4426 },
+        active:  { mAP50:0.6065, mAP50_95:0.2773, precision:0.5278, recall:0.6690 },
+        obsolete:{ mAP50:0.1332, mAP50_95:0.0515, precision:0.1775, recall:0.2162 }
+      },
+      localization: {
+        overall: { iou:0.7405, iop:0.8585, iog:0.8627, n_matched:88 }
+      },
+      screening: {
+        "0.10": { tb_detect_rate:0.9669, tb_flagged:"117/121", healthy_false_alarm:0.5417, healthy_flagged:"65/120", sick_false_alarm:0.7833, sick_flagged:"94/120" },
+        "0.25": { tb_detect_rate:0.8678, tb_flagged:"105/121", healthy_false_alarm:0.2667, healthy_flagged:"32/120", sick_false_alarm:0.5333, sick_flagged:"64/120" },
+        "0.50": { tb_detect_rate:0.5785, tb_flagged:"70/121",  healthy_false_alarm:0.0333, healthy_flagged:"4/120",  sick_false_alarm:0.2250, sick_flagged:"27/120" }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.333,n:72}, large:{recall:0.610,n:105} },
+      train_sec: 653.2,
+      notes: "<p>First baseline run. Positives-only training — no negative examples shown to the model during training, so it has no concept of a healthy lung and fires indiscriminately.</p><p>Active lesion detection is reasonable (mAP50 ~0.61) but Obsolete (latent TB) is very weak at 0.13 — severe class imbalance (724 active vs 178 obsolete train boxes). False alarm rates at conf=0.25 are very high: 53% on sick, 27% on healthy. This is the expected positives-only pathology, not a model defect.</p><p>Size bias confirmed: small lesions recall ≈ 0, medium ≈ 33%, large ≈ 61%.</p>"
+    },
+    {
+      id: "exp1b_512",
+      date: "2026-06-21",
+      desc: "YOLOv8n baseline · 512px · batch 8 · positives only · no aug",
+      tags: ["512 px", "batch 8", "pos-only", "no aug"],
+      config: { model:"YOLOv8n", imgsz:512, epochs:100, batch:8, aug:"off", amp:"off", negatives:"none", seed:0 },
+      detection: {
+        overall: { mAP50:0.3177, mAP50_95:0.1393, precision:0.2732, recall:0.3891 },
+        active:  { mAP50:0.5407, mAP50_95:0.2434, precision:0.4169, recall:0.6972 },
+        obsolete:{ mAP50:0.0947, mAP50_95:0.0352, precision:0.1294, recall:0.0811 }
+      },
+      localization: {
+        overall: { iou:0.7518, iop:0.8445, iog:0.8903, n_matched:90 }
+      },
+      screening: {
+        "0.10": { tb_detect_rate:0.9752, tb_flagged:"118/121", healthy_false_alarm:0.1917, healthy_flagged:"23/120", sick_false_alarm:0.6833, sick_flagged:"82/120" },
+        "0.25": { tb_detect_rate:0.8678, tb_flagged:"105/121", healthy_false_alarm:0.0833, healthy_flagged:"10/120", sick_false_alarm:0.3417, sick_flagged:"41/120" },
+        "0.50": { tb_detect_rate:0.6529, tb_flagged:"79/121",  healthy_false_alarm:0.0167, healthy_flagged:"2/120",  sick_false_alarm:0.1333, sick_flagged:"16/120" }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.319,n:72}, large:{recall:0.638,n:105} },
+      train_sec: 708.0,
+      notes: "<p>Same as exp1a but batch halved to 8 to de-confound resolution vs batch effect. mAP50 drops from 0.370 → 0.318 confirming batch is a real lever. Sick false alarm at conf=0.25 drops from 53% → 34% — a meaningful specificity improvement, but recall also drops (86.8% same). The earlier impression that '512 looks best' was the batch-16 advantage of exp1a, not the resolution.</p><p>Localization quality on matched pairs is excellent (IoU ~0.75, IoG ~0.89) — the model finds lesions well when it fires; the problem is coverage/recall.</p>"
+    },
+    {
+      id: "exp1b_1024",
+      date: "2026-06-21",
+      desc: "YOLOv8n baseline · 1024px · batch 8 · positives only · no aug",
+      tags: ["1024 px", "batch 8", "pos-only", "no aug"],
+      config: { model:"YOLOv8n", imgsz:1024, epochs:100, batch:8, aug:"off", amp:"off", negatives:"none", seed:0 },
+      detection: {
+        overall: { mAP50:0.3567, mAP50_95:0.1594, precision:0.3138, recall:0.4978 },
+        active:  { mAP50:0.5914, mAP50_95:0.2710, precision:0.4611, recall:0.7254 },
+        obsolete:{ mAP50:0.1221, mAP50_95:0.0478, precision:0.1666, recall:0.2703 }
+      },
+      localization: {
+        overall: { iou:0.7283, iop:0.8725, iog:0.8345, n_matched:91 }
+      },
+      screening: {
+        "0.10": { tb_detect_rate:0.9174, tb_flagged:"111/121", healthy_false_alarm:0.2667, healthy_flagged:"32/120", sick_false_alarm:0.4500, sick_flagged:"54/120" },
+        "0.25": { tb_detect_rate:0.8430, tb_flagged:"102/121", healthy_false_alarm:0.1000, healthy_flagged:"12/120", sick_false_alarm:0.2333, sick_flagged:"28/120" },
+        "0.50": { tb_detect_rate:0.6529, tb_flagged:"79/121",  healthy_false_alarm:0.0250, healthy_flagged:"3/120",  sick_false_alarm:0.0833, sick_flagged:"10/120" }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.319,n:72}, large:{recall:0.648,n:105} },
+      train_sec: 2554.8,
+      notes: "<p>At equal batch (8), 1024 beats 512 on every detection metric. Best recall of the exp1 family at 49.8% overall and 72.5% on active lesions. Sick false alarm at conf=0.25 narrows to 23% vs 34% for 512@8 — higher resolution gives more specific predictions.</p><p>Overfitting confirmed: val cls-loss bottomed ~epoch 12 then nearly doubled; val mAP50 peaked at epoch 12. best.pt captures the peak. More epochs hurt. Primary levers for improvement: augmentation (biggest), more data, partial freeze.</p><p>Training cost: ~42 min vs ~11 min for 512@16. Resolution is a quality ceiling, not the daily workhorse.</p>"
+    },
+    {
+      id: "exp2_neg1_512",
+      date: "2026-06-21",
+      desc: "YOLOv8n · 512px · batch 16 · negatives added 1:1 (50% sick / 50% healthy)",
+      tags: ["512 px", "batch 16", "+ negatives 1:1", "no aug"],
+      config: { model:"YOLOv8n", imgsz:512, epochs:100, batch:16, aug:"off", amp:"off", negatives:"1:1 (280 sick + 279 healthy)", seed:0 },
+      detection: {
+        overall: { mAP50:0.2693, mAP50_95:0.1146, precision:0.3470, recall:0.2629 },
+        active:  { mAP50:0.4789, mAP50_95:0.2070, precision:0.5729, recall:0.4718 },
+        obsolete:{ mAP50:0.0596, mAP50_95:0.0221, precision:0.1210, recall:0.0541 }
+      },
+      localization: {
+        overall: { iou:0.7346, iop:0.8552, iog:0.8594, n_matched:56 }
+      },
+      screening: {
+        "0.10": { tb_detect_rate:0.6198, tb_flagged:"75/121",  healthy_false_alarm:0.0000, healthy_flagged:"0/120",  sick_false_alarm:0.0250, sick_flagged:"3/120" },
+        "0.25": { tb_detect_rate:0.5455, tb_flagged:"66/121",  healthy_false_alarm:0.0000, healthy_flagged:"0/120",  sick_false_alarm:0.0083, sick_flagged:"1/120" },
+        "0.50": { tb_detect_rate:0.4628, tb_flagged:"56/121",  healthy_false_alarm:0.0000, healthy_flagged:"0/120",  sick_false_alarm:0.0000, sick_flagged:"0/120" }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.125,n:72}, large:{recall:0.448,n:105} },
+      train_sec: 1224.8,
+      notes: "<p>Adding 1:1 negatives to training causes a dramatic specificity improvement: false alarm on healthy drops from 27% → 0%, sick from 53% → 0.8% at conf=0.25. The model has learned to suppress non-TB lungs.</p><p>However, recall collapses: TB caught drops from 87% → 55% at conf=0.25. The model trades sensitivity for specificity — it is now conservative. This is the classic positives-vs-negatives balance problem.</p>"
+    },
+    {
+      id: "exp2_neg0.5_512",
+      date: "2026-06-22",
+      desc: "YOLOv8n · 512px · batch 16 · negatives 0.5:1 (140 sick + 140 healthy)",
+      tags: ["512 px", "batch 16", "+ negatives 0.5:1", "no aug"],
+      config: { model:"YOLOv8n", imgsz:512, epochs:100, batch:16, aug:"off", amp:"off", negatives:"0.5:1 (140 sick + 140 healthy)", seed:0 },
+      detection: {
+        overall: { mAP50:0.3139, mAP50_95:0.1604, precision:0.3841, recall:0.3379 },
+        active:  { mAP50:0.5185, mAP50_95:0.2757, precision:0.5973, recall:0.4596 },
+        obsolete:{ mAP50:0.1092, mAP50_95:0.0450, precision:0.1709, recall:0.2162 }
+      },
+      localization: {
+        overall: { iou:0.7589, iop:0.8501, iog:0.8875, n_matched:44 }
+      },
+      screening: {
+        "0.10": { tb_detect_rate:0.6033, tb_flagged:"73/121",  healthy_false_alarm:0.0167, healthy_flagged:"2/120",  sick_false_alarm:0.0750, sick_flagged:"9/120" },
+        "0.25": { tb_detect_rate:0.4959, tb_flagged:"60/121",  healthy_false_alarm:0.0167, healthy_flagged:"2/120",  sick_false_alarm:0.0417, sick_flagged:"5/120" },
+        "0.50": { tb_detect_rate:0.3636, tb_flagged:"44/121",  healthy_false_alarm:0.0083, healthy_flagged:"1/120",  sick_false_alarm:0.0167, sick_flagged:"2/120" },
+        "0.00": { tb_detect_rate:0.8926, tb_flagged:"108/121", healthy_false_alarm:0.1167, healthy_flagged:"14/120", sick_false_alarm:0.3667, sick_flagged:"44/120" }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.181,n:72}, large:{recall:0.295,n:105} },
+      train_sec: 940.6,
+      notes: "<p>Halving the negative ratio (0.5:1 vs 1:1) partially recovers specificity while keeping false alarms low. At conf=0.25: healthy FA holds at 1.7%, sick FA at 4.2% — still dramatically better than the positives-only baseline (27% healthy, 53% sick).</p><p>However TB recall is still hurt vs the no-negatives runs: only 60/121 caught at conf=0.25 vs 105/121 for exp1a. The model is still trading sensitivity for specificity. At conf=0.10 we get 73/121 TB caught with still-low FAs (1.7% healthy, 7.5% sick) — a more viable operating point than 0.25 for this ratio.</p><p>Interestingly, obsolete recall (0.216) recovers vs the 1:1 run (0.054) — fewer negatives let the model retain some of its latent TB signal. Key finding: negative ratio is a direct dial on the sensitivity/specificity tradeoff. Next: augmentation to improve recall without sacrificing specificity.</p>"
+    },
+    {
+      id: "exp2_neg0.25_512",
+      date: "2026-06-22",
+      desc: "YOLOv8n · 512px · batch 16 · negatives 0.25:1 (70 sick + 70 healthy)",
+      tags: ["512 px", "batch 16", "+ negatives 0.25:1", "no aug"],
+      config: { model:"YOLOv8n", imgsz:512, epochs:100, batch:16, aug:"off", amp:"off", negatives:"0.25:1 (70 sick + 70 healthy)", seed:0 },
+      detection: {
+        overall: { mAP50:0.2994, mAP50_95:0.1445, precision:0.2921, recall:0.3828 },
+        active:  { mAP50:0.5044, mAP50_95:0.2517, precision:0.4509, recall:0.5493 },
+        obsolete:{ mAP50:0.0943, mAP50_95:0.0372, precision:0.1333, recall:0.2162 }
+      },
+      localization: {
+        overall: { iou:0.7570, iop:0.8385, iog:0.9072, n_matched:38 }
+      },
+      screening: {
+        "0.10": { tb_detect_rate:0.4876, tb_flagged:"59/121", healthy_false_alarm:0.0083, healthy_flagged:"1/120", sick_false_alarm:0.0583, sick_flagged:"7/120" },
+        "0.25": { tb_detect_rate:0.4050, tb_flagged:"49/121", healthy_false_alarm:0.0000, healthy_flagged:"0/120", sick_false_alarm:0.0333, sick_flagged:"4/120" },
+        "0.50": { tb_detect_rate:0.2975, tb_flagged:"36/121", healthy_false_alarm:0.0000, healthy_flagged:"0/120", sick_false_alarm:0.0167, sick_flagged:"2/120" }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.0556,n:72}, large:{recall:0.3238,n:105} },
+      train_sec: 872.2,
+      notes: "<p>Halving the negative ratio further to 0.25:1 (140 negatives total, 70 sick + 70 healthy). Specificity remains very strong: healthy false alarm rate @0.25 is 0.0% (0/120) and sick false alarm rate is 3.3% (4/120).</p><p>However, recall is heavily suppressed (40.5% detection rate, 49/121 TB caught @0.25). The model remains highly specific but lacks sensitivity (underdetects lesions). Obsolete recall is 21.62%, matching the 0.5:1 ratio. This suggests that even a small negative training set (0.25:1) makes the model highly conservative without augmentation to teach it what actual TB lesions look like in varied conditions.</p>"
+    }
+  ];
+
+  // ── Helpers ─────────────────────────────────────────────────────────────
+  function fmt(v, decimals=3) {
+    if (v == null) return '—';
+    return typeof v === 'number' ? v.toFixed(decimals) : v;
+  }
+  function pct(v) { return v == null ? '—' : (v * 100).toFixed(1) + '%'; }
+  function colorClass(v, goodThresh, warnThresh) {
+    if (v == null) return '';
+    if (v >= goodThresh) return 'val-good';
+    if (v >= warnThresh) return 'val-warn';
+    return 'val-bad';
+  }
+  function faColor(v) {
+    // lower is better for false alarms
+    if (v <= 0.05) return 'val-good';
+    if (v <= 0.20) return 'val-warn';
+    return 'val-bad';
+  }
+  function trainTime(sec) {
+    const m = Math.round(sec / 60);
+    return m >= 60 ? `${Math.floor(m/60)}h ${m%60}m` : `${m}m`;
+  }
+
+  // ── Render table ─────────────────────────────────────────────────────────
+  function buildConfPanel(exp, conf) {
+    const s = exp.screening[conf];
+    if (!s) return '<em style="color:var(--text-dimmer)">No data</em>';
+    return `
+      <div class="detail-grid">
+        <div class="detail-kv"><span class="dk">TB Detect Rate</span><span class="dv ${s.tb_detect_rate>=0.85?'good':s.tb_detect_rate>=0.65?'warn':'bad'}">${pct(s.tb_detect_rate)}</span></div>
+        <div class="detail-kv"><span class="dk">TB Flagged</span><span class="dv">${s.tb_flagged}</span></div>
+        <div class="detail-kv"><span class="dk">Healthy FA</span><span class="dv ${faColor(s.healthy_false_alarm)}">${pct(s.healthy_false_alarm)}</span></div>
+        <div class="detail-kv"><span class="dk">Healthy Flagged</span><span class="dv">${s.healthy_flagged}</span></div>
+        <div class="detail-kv"><span class="dk">Sick FA</span><span class="dv ${faColor(s.sick_false_alarm)}">${pct(s.sick_false_alarm)}</span></div>
+        <div class="detail-kv"><span class="dk">Sick Flagged</span><span class="dv">${s.sick_flagged}</span></div>
+      </div>`;
+  }
+
+  function buildDetailHTML(exp) {
+    const d = exp.detection, loc = exp.localization.overall;
+    const confs = Object.keys(exp.screening);
+    const confTabs = confs.map((c,i) =>
+      `<button class="conf-tab${i===1?' active':''}" onclick="switchConf(this,'${exp.id}','${c}')" data-conf="${c}">@${c}</button>`
+    ).join('');
+    const confPanels = confs.map((c,i) =>
+      `<div class="conf-panel${i===1?' active':''}" id="cp-${exp.id}-${c}">${buildConfPanel(exp,c)}</div>`
+    ).join('');
+
+    const cfgRows = Object.entries(exp.config).map(([k,v]) =>
+      `<div class="detail-kv"><span class="dk">${k}</span><span class="dv">${v}</span></div>`
+    ).join('');
+
+    return `
+    <div class="detail-inner">
+      <div class="detail-section">
+        <h4>Detection Metrics</h4>
+        <div class="detail-grid">
+          <div class="detail-kv"><span class="dk">mAP50 (overall)</span><span class="dv ${colorClass(d.overall.mAP50,0.5,0.35)}">${fmt(d.overall.mAP50)}</span></div>
+          <div class="detail-kv"><span class="dk">mAP50-95</span><span class="dv">${fmt(d.overall.mAP50_95)}</span></div>
+          <div class="detail-kv"><span class="dk">Precision</span><span class="dv">${fmt(d.overall.precision)}</span></div>
+          <div class="detail-kv"><span class="dk">Recall</span><span class="dv ${colorClass(d.overall.recall,0.5,0.35)}">${fmt(d.overall.recall)}</span></div>
+          <div class="detail-kv"><span class="dk">Active mAP50</span><span class="dv ${colorClass(d.active.mAP50,0.6,0.4)}">${fmt(d.active.mAP50)}</span></div>
+          <div class="detail-kv"><span class="dk">Active Recall</span><span class="dv">${fmt(d.active.recall)}</span></div>
+          <div class="detail-kv"><span class="dk">Obsolete mAP50</span><span class="dv ${colorClass(d.obsolete.mAP50,0.3,0.15)}">${fmt(d.obsolete.mAP50)}</span></div>
+          <div class="detail-kv"><span class="dk">Obsolete Recall</span><span class="dv">${fmt(d.obsolete.recall)}</span></div>
+        </div>
+        <br/>
+        <h4>Localization (matched pairs)</h4>
+        <div class="detail-grid">
+          <div class="detail-kv"><span class="dk">IoU</span><span class="dv">${fmt(loc.iou)}</span></div>
+          <div class="detail-kv"><span class="dk">IoP</span><span class="dv">${fmt(loc.iop)}</span></div>
+          <div class="detail-kv"><span class="dk">IoG</span><span class="dv">${fmt(loc.iog)}</span></div>
+          <div class="detail-kv"><span class="dk">Matched Pairs</span><span class="dv">${loc.n_matched}</span></div>
+        </div>
+      </div>
+      <div class="detail-section">
+        <h4>Screening</h4>
+        <div class="conf-tabs">${confTabs}</div>
+        ${confPanels}
+        <br/>
+        <h4>Recall by Lesion Size</h4>
+        <div class="detail-grid">
+          <div class="detail-kv"><span class="dk">Small (n=${exp.by_size.small.n})</span><span class="dv bad">${fmt(exp.by_size.small.recall)}</span></div>
+          <div class="detail-kv"><span class="dk">Medium (n=${exp.by_size.medium.n})</span><span class="dv warn">${fmt(exp.by_size.medium.recall)}</span></div>
+          <div class="detail-kv"><span class="dk">Large (n=${exp.by_size.large.n})</span><span class="dv">${fmt(exp.by_size.large.recall)}</span></div>
+        </div>
+        <br/>
+        <h4>Config</h4>
+        <div class="detail-grid">${cfgRows}</div>
+      </div>
+      <div class="detail-section detail-notes">
+        <h4>Notes</h4>
+        <div class="notes-text">${exp.notes}</div>
+      </div>
+    </div>`;
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('exp-tbody');
+    // Newest first in the table
+    const sorted = [...experiments].reverse();
+    sorted.forEach(exp => {
+      const s25 = exp.screening["0.25"];
+      const main = document.createElement('tr');
+      main.id = `row-${exp.id}`;
+      main.setAttribute('onclick', `toggleRow('${exp.id}')`);
+      main.innerHTML = `
+        <td class="exp-id">${exp.id}</td>
+        <td class="exp-desc">${exp.desc}</td>
+        <td class="right ${colorClass(exp.detection.overall.mAP50,0.5,0.35)}">${fmt(exp.detection.overall.mAP50)}</td>
+        <td class="right">${fmt(exp.detection.overall.precision)}</td>
+        <td class="right ${colorClass(exp.detection.overall.recall,0.5,0.35)}">${fmt(exp.detection.overall.recall)}</td>
+        <td class="right">${s25 ? s25.tb_flagged : '—'}</td>
+        <td class="right ${s25 ? faColor(s25.healthy_false_alarm) : ''}">${s25 ? pct(s25.healthy_false_alarm) : '—'}</td>
+        <td class="right ${s25 ? faColor(s25.sick_false_alarm) : ''}">${s25 ? pct(s25.sick_false_alarm) : '—'}</td>
+        <td class="center val-dim">${trainTime(exp.train_sec)}</td>
+        <td style="padding:0.9rem 0.75rem;">
+          <button class="expand-btn" id="btn-${exp.id}" aria-label="Expand row" onclick="event.stopPropagation(); toggleRow('${exp.id}')">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <polyline points="2,4 7,10 12,4"/>
+            </svg>
+          </button>
+        </td>`;
+
+      const detail = document.createElement('tr');
+      detail.id = `detail-${exp.id}`;
+      detail.className = 'detail-row';
+      const cell = document.createElement('td');
+      cell.className = 'detail-cell';
+      cell.colSpan = 10;
+      cell.innerHTML = buildDetailHTML(exp);
+      detail.appendChild(cell);
+
+      tbody.appendChild(main);
+      tbody.appendChild(detail);
+    });
+  }
+
+  function toggleRow(id) {
+    const detail = document.getElementById(`detail-${id}`);
+    const btn    = document.getElementById(`btn-${id}`);
+    const row    = document.getElementById(`row-${id}`);
+    const isOpen = detail.classList.contains('visible');
+    detail.classList.toggle('visible', !isOpen);
+    btn.classList.toggle('open', !isOpen);
+    row.classList.toggle('expanded', !isOpen);
+  }
+
+  function switchConf(btn, expId, conf) {
+    // deactivate all tabs/panels for this exp
+    btn.closest('.detail-section').querySelectorAll('.conf-tab').forEach(t => t.classList.remove('active'));
+    btn.closest('.detail-section').querySelectorAll('.conf-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`cp-${expId}-${conf}`).classList.add('active');
+  }
+
+  renderTable();
+  </script>
+</body>
+</html>

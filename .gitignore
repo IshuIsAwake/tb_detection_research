@@ -1,0 +1,21 @@
+# Raw dataset — 7 GB, public download (see README). Never committed.
+data/
+
+# Generated, rebuildable (converted labels, splits.json, materialised trees)
+yolo_datasets/
+
+# Per-run experiment outputs (weights, curves, metrics)
+yolo_experiments/results/
+
+# Pretrained weights — auto-downloaded by Ultralytics
+*.pt
+
+# Ultralytics stray val/predict outputs
+runs/
+
+# Python noise
+__pycache__/
+*.pyc
+
+# Local Claude settings
+.claude/settings.local.json
