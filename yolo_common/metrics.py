@@ -236,6 +236,73 @@ def by_size(per_image, conf=S.LOC_CONF, img_area=512 * 512) -> dict:
             for name, b in buckets.items()}
 
 
+# ── confusion matrix on the TEST positives ────────────────────────────────────
+
+def confusion_matrix(per_image, conf=S.LOC_CONF, iou_thr=S.IOU_MATCH) -> dict:
+    """Detection confusion matrix on the sealed TEST positives, mirroring the
+    Ultralytics layout (rows = PREDICTED, cols = TRUE, last index = background)
+    — but on the blackbox, not val. Matching is CLASS-AGNOSTIC (highest-conf
+    pred → best-IoU unused GT regardless of class) so cross-class confusion
+    (Active↔Obsolete) shows up in the off-diagonal cells.
+
+      matrix[pred][true_bg] = false positive (pred matched no GT)
+      matrix[bg][true_cls]  = false negative (GT missed)
+      matrix[bg][bg]        = undefined for detection (no true negatives)
+    """
+    n = S.NUM_CLASSES
+    BG = n
+    M = [[0] * (n + 1) for _ in range(n + 1)]
+    for im in per_image:
+        if im["group"] != "tb":
+            continue
+        gts = im["gts"]
+        preds = sorted([p for p in im["preds"] if p[1] >= conf], key=lambda x: -x[1])
+        used = set()
+        for pcls, _, pbox in preds:
+            best_j, best_v = -1, -1.0
+            for j, (_, gbox) in enumerate(gts):
+                if j in used:
+                    continue
+                v = iou(pbox, gbox)
+                if v > best_v:
+                    best_v, best_j = v, j
+            if best_j >= 0 and best_v >= iou_thr:
+                used.add(best_j)
+                M[pcls][gts[best_j][0]] += 1        # matched: pred-class vs true-class
+            else:
+                M[pcls][BG] += 1                     # FP → true = background
+        for j, (gc, _) in enumerate(gts):
+            if j not in used:
+                M[BG][gc] += 1                       # FN → pred = background
+    return {"labels": S.CLASS_NAMES + ["background"], "matrix": M,
+            "conf": conf, "iou": iou_thr, "axes": "rows=predicted, cols=true"}
+
+
+def save_confusion_png(cm: dict, path) -> None:
+    """Render the TEST confusion matrix to a PNG (rows=pred, cols=true)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    M = np.array(cm["matrix"], dtype=float)
+    labels = cm["labels"]
+    bg = len(labels) - 1
+    fig, ax = plt.subplots(figsize=(6.5, 5.5))
+    im = ax.imshow(M, cmap="Blues")
+    ax.set_xticks(range(len(labels))); ax.set_xticklabels(labels, rotation=90)
+    ax.set_yticks(range(len(labels))); ax.set_yticklabels(labels)
+    ax.set_xlabel("True"); ax.set_ylabel("Predicted")
+    ax.set_title(f"Confusion Matrix — TEST (conf>={cm['conf']}, IoU>={cm['iou']})")
+    thr = M.max() / 2 if M.max() else 0.5
+    for i in range(len(labels)):
+        for j in range(len(labels)):
+            if i == bg and j == bg:
+                continue
+            ax.text(j, i, int(M[i][j]), ha="center", va="center",
+                    color="white" if M[i][j] > thr else "black")
+    fig.colorbar(im); fig.tight_layout()
+    fig.savefig(path, dpi=120); plt.close(fig)
+
+
 # ── detection AP via Ultralytics val ──────────────────────────────────────────
 
 def detection_ap(model, imgsz, split) -> dict:
@@ -283,6 +350,7 @@ def evaluate(model, imgsz, split, items) -> dict:
         "localization": localization(per_image),
         "screening": screening(per_image, confs),
         "by_size": by_size(per_image),
+        "confusion_matrix": confusion_matrix(per_image),
     }
 
 
@@ -323,6 +391,19 @@ def summary_text(report: dict) -> str:
     L += ["", "== recall by GT lesion size (small<1%, medium 1-5%, large>5% img area) =="]
     for k in ("small", "medium", "large"):
         L.append(f"  {k:<7} recall={bs[k]['recall']:.3f}  (n={bs[k]['n']})")
+
+    cm = m.get("confusion_matrix")
+    if cm:
+        M, labs = cm["matrix"], cm["labels"]
+        bg = len(labs) - 1
+        short = [l[:9] for l in labs]
+        L += ["", f"== confusion matrix on TEST positives (rows=pred, cols=true, "
+                  f"conf>={cm['conf']}, IoU>={cm['iou']}) =="]
+        L.append("  pred\\true  " + " ".join(f"{s:>9}" for s in short))
+        for i, row in enumerate(M):
+            cells = ["        -" if (i == bg and j == bg) else f"{v:>9}"
+                     for j, v in enumerate(row)]
+            L.append(f"  {short[i]:<9} " + " ".join(cells))
 
     L += ["",
           "NOTE: a positives-only model is EXPECTED to over-fire on negatives, so",

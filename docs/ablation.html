@@ -9,6 +9,193 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Hero tab bar ── */
+    .hero-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.75rem;
+      flex-wrap: wrap;
+    }
+    .htab {
+      padding: 0.55rem 1.5rem;
+      border: 2px solid var(--border-accent);
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all var(--transition);
+      font-family: var(--font);
+    }
+    .htab:hover { background: var(--bg-3); color: var(--text); }
+    .htab.active { background: var(--border-accent); color: var(--bg); }
+    .hero-panel { display: none; }
+    .hero-panel.active { display: block; }
+
+    /* ── Best-so-far hero (distinct from latest) ── */
+    .best-hero {
+      border: 2px solid var(--border-accent);
+      padding: 2.5rem;
+      background: var(--bg);
+      position: relative;
+    }
+    .best-hero::before {
+      content: 'BEST SO FAR';
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      font-size: 0.73rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      color: #000000;
+      background: transparent;
+      border: 2px solid #000000;
+      padding: 0.3rem 0.8rem;
+    }
+
+    /* override latest-hero to remove old badge */
+    .latest-hero::before { display: none; }
+
+    /* ── Hero description / settings panels ── */
+    .hero-description-text {
+      font-size: 0.97rem;
+      color: var(--text-dim);
+      line-height: 1.85;
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+    }
+    .hero-description-text p { margin-bottom: 0.75rem; }
+    .hero-description-text p:last-child { margin-bottom: 0; }
+    .hero-settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 0.5rem 2.5rem;
+    }
+    .hero-aug-detail {
+      margin-top: 1.5rem;
+      border-top: 1px dashed var(--border);
+      padding-top: 1.25rem;
+    }
+    .hero-aug-detail h5 {
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text);
+      margin-bottom: 0.75rem;
+    }
+    .aug-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.4rem 2rem;
+    }
+
+    /* ── Collapsible YOLO section header ── */
+    .section-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--border-accent);
+      margin-top: 3.5rem;
+      user-select: none;
+    }
+    .section-toggle:hover .section-toggle-label { color: var(--text-dim); }
+    .section-toggle-label {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .section-toggle-desc {
+      font-size: 0.82rem;
+      color: var(--text-dimmer);
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      margin-left: 1rem;
+    }
+
+    /* ── Experiment row 3-button tabs ── */
+    .exp-tab-bar {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .exp-tab {
+      padding: 0.45rem 1.2rem;
+      border: 1px solid var(--border-accent);
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all var(--transition);
+      font-family: var(--font);
+    }
+    .exp-tab:hover { background: var(--bg-3); color: var(--text); }
+    .exp-tab.active { background: var(--border-accent); color: var(--bg); }
+    .exp-panel { display: none; }
+    .exp-panel.active { display: block; }
+
+    /* ── Metrics list inside expanded rows ── */
+    .metrics-section { margin-bottom: 1.75rem; }
+    .metrics-section:last-child { margin-bottom: 0; }
+    .metrics-section-title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text);
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-accent);
+      margin-bottom: 0.75rem;
+    }
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.38rem 0;
+      border-bottom: 1px dashed var(--border);
+      font-size: 0.91rem;
+    }
+    .metric-row:last-child { border-bottom: none; }
+    .metric-label { color: var(--text-dim); }
+    .metric-value { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+    .metric-value.good { font-weight: 800; color: #000; }
+    .metric-value.warn { font-weight: 400; color: #495057; }
+    .metric-value.bad  { font-weight: 400; color: #868e96; font-style: italic; }
+
+    .exp-metrics-panels {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+    .exp-description-panel {
+      font-size: 0.95rem;
+      color: var(--text-dim);
+      line-height: 1.8;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+    }
+    .exp-description-panel p { margin-bottom: 0.75rem; }
+    .exp-description-panel p:last-child { margin-bottom: 0; }
+    .exp-settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 0.4rem 2.5rem;
+    }
+  </style>
 </head>
 <body>
   <nav class="navbar">
@@ -17,7 +204,7 @@
       <ul class="nav-links">
         <li><a href="index.html">Home</a></li>
         <li><a href="ablation.html" class="active">Ablation Studies</a></li>
-        <li><a href="literature.html">Literature Review</a></li>
+        <li><a href="literature.html">References</a></li>
         <li><a href="data.html">Data</a></li>
       </ul>
     </div>
@@ -28,334 +215,852 @@
     <h1 class="page-title">Ablation Studies</h1>
     <p class="page-desc">
       Systematic experiments tracking model performance over time.
-      Rows are in chronological order; click <strong>▼</strong> to expand full metrics and notes for any run.
-      Screening metrics shown at <code>conf=0.25</code> by default.
+      Screening metrics at <code>conf=0.25</code> unless stated.
+      Active mAP50 on the sealed 360-image test set is the primary metric.
     </p>
   </header>
 
   <main class="section">
 
-    <!-- ── Latest Experiment Hero ── -->
+    <!-- ── Latest Run ── -->
     <p class="section-title">Latest Run</p>
     <div class="latest-hero" id="latest-hero">
       <div class="lh-header">
         <div>
-          <div class="lh-id">exp2_neg0.25_512</div>
-          <div class="lh-desc">YOLOv8n · 512px · batch 16 · negatives 0.25:1 (70 sick + 70 healthy) · no augmentation</div>
+          <div class="lh-id">exp4_posonly_mosaic_1024_s2</div>
+          <div class="lh-desc">YOLOv8n · 1024px · batch 8 · mosaic aug · positives-only · seed 2</div>
           <div class="lh-tags">
-            <span class="tag tag-blue">512 px</span>
-            <span class="tag tag-blue">batch 16</span>
-            <span class="tag tag-teal">+ negatives 0.25:1</span>
-            <span class="tag tag-amber">no aug</span>
+            <span class="tag tag-blue">1024 px</span>
+            <span class="tag tag-blue">batch 8</span>
+            <span class="tag tag-teal">mosaic aug</span>
+            <span class="tag tag-amber">pos-only</span>
+            <span class="tag tag-amber">seed 2</span>
           </div>
         </div>
       </div>
-      <div class="lh-metrics">
-        <div class="lh-metric">
-          <div class="lh-metric-label">mAP50</div>
-          <div class="lh-metric-val warn">0.299</div>
+      <div class="hero-tabs">
+        <button class="htab active" data-hero="latest" data-panel="metrics" onclick="switchHeroTab(this)">Metrics</button>
+        <button class="htab" data-hero="latest" data-panel="description" onclick="switchHeroTab(this)">Description</button>
+        <button class="htab" data-hero="latest" data-panel="settings" onclick="switchHeroTab(this)">Settings</button>
+      </div>
+      <div id="hp-latest-metrics" class="hero-panel active">
+        <div class="lh-metrics">
+          <div class="lh-metric"><div class="lh-metric-label">mAP50</div><div class="lh-metric-val warn">0.433</div></div>
+          <div class="lh-metric"><div class="lh-metric-label">Box Precision</div><div class="lh-metric-val warn">0.299</div></div>
+          <div class="lh-metric"><div class="lh-metric-label">Box Recall</div><div class="lh-metric-val warn">0.608</div></div>
+          <div class="lh-metric"><div class="lh-metric-label">TB Caught @.25</div><div class="lh-metric-val warn">108/121</div></div>
+          <div class="lh-metric"><div class="lh-metric-label">IoU</div><div class="lh-metric-val warn">0.730</div></div>
+          <div class="lh-metric"><div class="lh-metric-label">Active mAP50</div><div class="lh-metric-val good">0.699</div></div>
+          <div class="lh-metric"><div class="lh-metric-label">Obsolete mAP50</div><div class="lh-metric-val bad">0.167</div></div>
         </div>
-        <div class="lh-metric">
-          <div class="lh-metric-label">Box Precision</div>
-          <div class="lh-metric-val warn">0.292</div>
+      </div>
+      <div id="hp-latest-description" class="hero-panel">
+        <div class="hero-description-text">
+          <p>Final seed of the exp4 multi-seed confirmation at 1024×1024, batch 8. Active mAP50 = 0.699 — the highest of the three mosaic@1024 seeds (range 0.683–0.699).</p>
+          <p>Mosaic augmentation band [0.683–0.699] does not overlap geometry-only's band [0.667–0.671], confirming mosaic as the winner with statistical confidence across seeds and resolutions.</p>
+          <p>Best specificity of all mosaic runs: 2.5% healthy false alarm and 16.7% sick false alarm at conf=0.25. Overall recall of 60.8% reflects the positives-only training — the detector is kept sensitive, with specificity reserved for the upstream classifier.</p>
         </div>
-        <div class="lh-metric">
-          <div class="lh-metric-label">Box Recall</div>
-          <div class="lh-metric-val bad">0.383</div>
+      </div>
+      <div id="hp-latest-settings" class="hero-panel">
+        <div class="hero-settings-grid">
+          <div class="detail-kv"><span class="dk">Model</span><span class="dv">yolov8n.pt</span></div>
+          <div class="detail-kv"><span class="dk">Image Size</span><span class="dv">1024 px</span></div>
+          <div class="detail-kv"><span class="dk">Batch</span><span class="dv">8</span></div>
+          <div class="detail-kv"><span class="dk">Epochs</span><span class="dv">200</span></div>
+          <div class="detail-kv"><span class="dk">Augmentation</span><span class="dv">mosaic</span></div>
+          <div class="detail-kv"><span class="dk">Negatives</span><span class="dv">none (pos-only)</span></div>
+          <div class="detail-kv"><span class="dk">AMP</span><span class="dv">off</span></div>
+          <div class="detail-kv"><span class="dk">Seed</span><span class="dv">2</span></div>
+          <div class="detail-kv"><span class="dk">Patience</span><span class="dv">100</span></div>
         </div>
-        <div class="lh-metric">
-          <div class="lh-metric-label">TB Caught @.25</div>
-          <div class="lh-metric-val bad">49/121</div>
-        </div>
-        <div class="lh-metric">
-          <div class="lh-metric-label">Healthy FA @.25</div>
-          <div class="lh-metric-val good">0.0%</div>
-        </div>
-        <div class="lh-metric">
-          <div class="lh-metric-label">Sick FA @.25</div>
-          <div class="lh-metric-val good">3.3%</div>
-        </div>
-        <div class="lh-metric">
-          <div class="lh-metric-label">Active mAP50</div>
-          <div class="lh-metric-val warn">0.504</div>
-        </div>
-        <div class="lh-metric">
-          <div class="lh-metric-label">Obsolete mAP50</div>
-          <div class="lh-metric-val bad">0.094</div>
+        <div class="hero-aug-detail">
+          <h5>Augmentation Parameters</h5>
+          <div class="aug-grid">
+            <div class="detail-kv"><span class="dk">degrees</span><span class="dv">10.0</span></div>
+            <div class="detail-kv"><span class="dk">translate</span><span class="dv">0.1</span></div>
+            <div class="detail-kv"><span class="dk">scale</span><span class="dv">0.5</span></div>
+            <div class="detail-kv"><span class="dk">fliplr</span><span class="dv">0.5</span></div>
+            <div class="detail-kv"><span class="dk">mosaic</span><span class="dv">1.0</span></div>
+            <div class="detail-kv"><span class="dk">close_mosaic</span><span class="dv">10</span></div>
+            <div class="detail-kv"><span class="dk">mixup</span><span class="dv">0.0</span></div>
+            <div class="detail-kv"><span class="dk">hsv_h / hsv_s / hsv_v</span><span class="dv">0 / 0 / 0</span></div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- ── YOLO Experiments Table ── -->
-    <p class="section-title" style="margin-top:3.5rem;">YOLO Experiments</p>
-    <div class="table-wrapper">
-      <table class="exp-table" id="yolo-table">
-        <thead>
-          <tr>
-            <th>Experiment</th>
-            <th>Description</th>
-            <th class="right">mAP50</th>
-            <th class="right">Precision</th>
-            <th class="right">Recall</th>
-            <th class="right">TB Caught @.25</th>
-            <th class="right">Healthy FA @.25</th>
-            <th class="right">Sick FA @.25</th>
-            <th class="center">Train Time</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="exp-tbody">
-          <!-- rows injected by JS -->
-        </tbody>
-      </table>
+    <!-- ── Best So Far ── -->
+    <p class="section-title" style="margin-top:3.5rem;">Best So Far</p>
+    <div class="best-hero" id="best-hero">
+      <div class="lh-header">
+        <div>
+          <div class="lh-id">exp3_mosaic_512</div>
+          <div class="lh-desc">YOLOv8n · 512px · batch 16 · mosaic aug · positives-only · seed 0</div>
+          <div class="lh-tags">
+            <span class="tag tag-blue">512 px</span>
+            <span class="tag tag-blue">batch 16</span>
+            <span class="tag tag-teal">mosaic aug</span>
+            <span class="tag tag-amber">pos-only</span>
+            <span class="tag tag-green">final config</span>
+          </div>
+        </div>
+      </div>
+      <div class="hero-tabs">
+        <button class="htab active" data-hero="best" data-panel="metrics" onclick="switchHeroTab(this)">Metrics</button>
+        <button class="htab" data-hero="best" data-panel="description" onclick="switchHeroTab(this)">Description</button>
+        <button class="htab" data-hero="best" data-panel="settings" onclick="switchHeroTab(this)">Settings</button>
+      </div>
+      <div id="hp-best-metrics" class="hero-panel active">
+        <div class="lh-metrics">
+          <div class="lh-metric"><div class="lh-metric-label">mAP50</div><div class="lh-metric-val warn">0.506</div></div>
+          <div class="lh-metric"><div class="lh-metric-label">Box Precision</div><div class="lh-metric-val warn">0.498</div></div>
+          <div class="lh-metric"><div class="lh-metric-label">Box Recall</div><div class="lh-metric-val warn">0.546</div></div>
+          <div class="lh-metric"><div class="lh-metric-label">TB Caught @.25</div><div class="lh-metric-val good">118/121</div></div>
+          <div class="lh-metric"><div class="lh-metric-label">IoU</div><div class="lh-metric-val warn">0.730</div></div>
+          <div class="lh-metric"><div class="lh-metric-label">Active mAP50</div><div class="lh-metric-val good">0.741</div></div>
+          <div class="lh-metric"><div class="lh-metric-label">Obsolete mAP50</div><div class="lh-metric-val warn">0.272</div></div>
+        </div>
+      </div>
+      <div id="hp-best-description" class="hero-panel">
+        <div class="hero-description-text">
+          <p>Highest Active mAP50 of the final detector configuration: mosaic augmentation at 512×512, batch 16, positives-only. Active mAP50 = 0.741 — the best valid run (mosaic_mixup's occasional higher scores were confirmed as single-seed noise in multi-seed testing).</p>
+          <p>Augmentation fixes the floor's overfitting: val-mAP peak shifts from epoch ~12 to ~150, and medium-lesion recall doubles from 38.9% to 51.4%. Catches 118/121 TB cases at conf=0.25 — a 97.5% detection rate — with only 5.8% healthy false alarm rate.</p>
+          <p>Multi-seed validation (exp4) confirmed mosaic beats geometry-only augmentation across seeds at 1024px with non-overlapping confidence intervals. The final detector configuration decided: <strong>mosaic @ 512, batch 16</strong>. Carried into exp5 (k-fold CV).</p>
+        </div>
+      </div>
+      <div id="hp-best-settings" class="hero-panel">
+        <div class="hero-settings-grid">
+          <div class="detail-kv"><span class="dk">Model</span><span class="dv">yolov8n.pt</span></div>
+          <div class="detail-kv"><span class="dk">Image Size</span><span class="dv">512 px</span></div>
+          <div class="detail-kv"><span class="dk">Batch</span><span class="dv">16</span></div>
+          <div class="detail-kv"><span class="dk">Epochs</span><span class="dv">200</span></div>
+          <div class="detail-kv"><span class="dk">Augmentation</span><span class="dv">mosaic</span></div>
+          <div class="detail-kv"><span class="dk">Negatives</span><span class="dv">none (pos-only)</span></div>
+          <div class="detail-kv"><span class="dk">AMP</span><span class="dv">off</span></div>
+          <div class="detail-kv"><span class="dk">Seed</span><span class="dv">0</span></div>
+          <div class="detail-kv"><span class="dk">Patience</span><span class="dv">100</span></div>
+        </div>
+        <div class="hero-aug-detail">
+          <h5>Augmentation Parameters</h5>
+          <div class="aug-grid">
+            <div class="detail-kv"><span class="dk">degrees</span><span class="dv">10.0</span></div>
+            <div class="detail-kv"><span class="dk">translate</span><span class="dv">0.1</span></div>
+            <div class="detail-kv"><span class="dk">scale</span><span class="dv">0.5</span></div>
+            <div class="detail-kv"><span class="dk">fliplr</span><span class="dv">0.5</span></div>
+            <div class="detail-kv"><span class="dk">mosaic</span><span class="dv">1.0</span></div>
+            <div class="detail-kv"><span class="dk">close_mosaic</span><span class="dv">10</span></div>
+            <div class="detail-kv"><span class="dk">mixup</span><span class="dv">0.0</span></div>
+            <div class="detail-kv"><span class="dk">hsv_h / hsv_s / hsv_v</span><span class="dv">0 / 0 / 0</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── YOLO Experiments (collapsible) ── -->
+    <div class="section-toggle" id="yolo-section-toggle" onclick="toggleYoloSection()">
+      <div>
+        <span class="section-toggle-label">YOLO Experiments</span>
+        <span class="section-toggle-desc">all runs · chronological · newest first</span>
+      </div>
+      <button class="expand-btn" id="btn-yolo-section" onclick="event.stopPropagation();toggleYoloSection()" aria-label="Toggle experiments table">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <polyline points="2,4 7,10 12,4"/>
+        </svg>
+      </button>
+    </div>
+    <div id="yolo-experiments-wrapper" style="display:none;margin-top:1.5rem;">
+      <div class="table-wrapper">
+        <table class="exp-table" id="yolo-table">
+          <thead>
+            <tr>
+              <th>Experiment</th>
+              <th class="right">mAP50</th>
+              <th class="right">Precision</th>
+              <th class="right">Recall</th>
+              <th class="right">TB Caught @.25</th>
+              <th class="right">Healthy FA @.25</th>
+              <th class="right">Sick FA @.25</th>
+              <th class="center">Train Time</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="exp-tbody"></tbody>
+        </table>
+      </div>
     </div>
 
   </main>
 
   <script>
-  // ── Experiment data ──────────────────────────────────────────────────────
+  // ── Experiment data (chronological, oldest first) ─────────────────────────
   const experiments = [
+    // ── exp1 ──────────────────────────────────────────────────────────────────
     {
       id: "exp1a_512",
       date: "2026-06-19",
       desc: "YOLOv8n baseline · 512px · batch 16 · positives only · no aug",
       tags: ["512 px", "batch 16", "pos-only", "no aug"],
-      config: { model:"YOLOv8n", imgsz:512, epochs:100, batch:16, aug:"off", amp:"off", negatives:"none", seed:0 },
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:100, aug_level:"off", negatives:"none", amp:false, seed:0, patience:50 },
+      augKwargs: null,
       detection: {
-        overall: { mAP50:0.3699, mAP50_95:0.1644, precision:0.3527, recall:0.4426 },
-        active:  { mAP50:0.6065, mAP50_95:0.2773, precision:0.5278, recall:0.6690 },
-        obsolete:{ mAP50:0.1332, mAP50_95:0.0515, precision:0.1775, recall:0.2162 }
+        overall:  { mAP50:0.3699, mAP50_95:0.1644, precision:0.3527, recall:0.4426 },
+        active:   { mAP50:0.6065, mAP50_95:0.2773, precision:0.5278, recall:0.6690 },
+        obsolete: { mAP50:0.1332, mAP50_95:0.0515, precision:0.1775, recall:0.2162 }
       },
-      localization: {
-        overall: { iou:0.7405, iop:0.8585, iog:0.8627, n_matched:88 }
-      },
+      localization: { iou:0.7405, iop:0.8585, iog:0.8627, n_matched:88 },
       screening: {
-        "0.10": { tb_detect_rate:0.9669, tb_flagged:"117/121", healthy_false_alarm:0.5417, healthy_flagged:"65/120", sick_false_alarm:0.7833, sick_flagged:"94/120" },
-        "0.25": { tb_detect_rate:0.8678, tb_flagged:"105/121", healthy_false_alarm:0.2667, healthy_flagged:"32/120", sick_false_alarm:0.5333, sick_flagged:"64/120" },
-        "0.50": { tb_detect_rate:0.5785, tb_flagged:"70/121",  healthy_false_alarm:0.0333, healthy_flagged:"4/120",  sick_false_alarm:0.2250, sick_flagged:"27/120" }
+        "0.10": { rate:0.9669, flagged:"117/121", hfa:0.5417, sfa:0.7833 },
+        "0.25": { rate:0.8678, flagged:"105/121", hfa:0.2667, sfa:0.5333 },
+        "0.50": { rate:0.5785, flagged:"70/121",  hfa:0.0333, sfa:0.2250 }
       },
       by_size: { small:{recall:0.00,n:2}, medium:{recall:0.333,n:72}, large:{recall:0.610,n:105} },
       train_sec: 653.2,
-      notes: "<p>First baseline run. Positives-only training — no negative examples shown to the model during training, so it has no concept of a healthy lung and fires indiscriminately.</p><p>Active lesion detection is reasonable (mAP50 ~0.61) but Obsolete (latent TB) is very weak at 0.13 — severe class imbalance (724 active vs 178 obsolete train boxes). False alarm rates at conf=0.25 are very high: 53% on sick, 27% on healthy. This is the expected positives-only pathology, not a model defect.</p><p>Size bias confirmed: small lesions recall ≈ 0, medium ≈ 33%, large ≈ 61%.</p>"
+      notes: "<p>First baseline run. Positives-only training — no negative examples, so the model has no concept of a healthy lung and fires indiscriminately.</p><p>Active lesion detection is reasonable (mAP50 ~0.61) but Obsolete (latent TB) is very weak at 0.13 — severe class imbalance (724 active vs 178 obsolete train boxes). False alarm rates at conf=0.25 are very high: 53% on sick, 27% on healthy. This is the expected positives-only pathology, not a model defect.</p><p>Size bias confirmed: small lesions recall ≈ 0, medium ≈ 33%, large ≈ 61%. Bottleneck is recall, not box quality (matched IoU ~0.74 — lesions are missed, not mislocated).</p>"
     },
     {
       id: "exp1b_512",
       date: "2026-06-21",
       desc: "YOLOv8n baseline · 512px · batch 8 · positives only · no aug",
       tags: ["512 px", "batch 8", "pos-only", "no aug"],
-      config: { model:"YOLOv8n", imgsz:512, epochs:100, batch:8, aug:"off", amp:"off", negatives:"none", seed:0 },
+      config: { model:"yolov8n.pt", imgsz:512, batch:8, epochs:100, aug_level:"off", negatives:"none", amp:false, seed:0, patience:50 },
+      augKwargs: null,
       detection: {
-        overall: { mAP50:0.3177, mAP50_95:0.1393, precision:0.2732, recall:0.3891 },
-        active:  { mAP50:0.5407, mAP50_95:0.2434, precision:0.4169, recall:0.6972 },
-        obsolete:{ mAP50:0.0947, mAP50_95:0.0352, precision:0.1294, recall:0.0811 }
+        overall:  { mAP50:0.3177, mAP50_95:0.1393, precision:0.2732, recall:0.3891 },
+        active:   { mAP50:0.5407, mAP50_95:0.2434, precision:0.4169, recall:0.6972 },
+        obsolete: { mAP50:0.0947, mAP50_95:0.0352, precision:0.1294, recall:0.0811 }
       },
-      localization: {
-        overall: { iou:0.7518, iop:0.8445, iog:0.8903, n_matched:90 }
-      },
+      localization: { iou:0.7518, iop:0.8445, iog:0.8903, n_matched:90 },
       screening: {
-        "0.10": { tb_detect_rate:0.9752, tb_flagged:"118/121", healthy_false_alarm:0.1917, healthy_flagged:"23/120", sick_false_alarm:0.6833, sick_flagged:"82/120" },
-        "0.25": { tb_detect_rate:0.8678, tb_flagged:"105/121", healthy_false_alarm:0.0833, healthy_flagged:"10/120", sick_false_alarm:0.3417, sick_flagged:"41/120" },
-        "0.50": { tb_detect_rate:0.6529, tb_flagged:"79/121",  healthy_false_alarm:0.0167, healthy_flagged:"2/120",  sick_false_alarm:0.1333, sick_flagged:"16/120" }
+        "0.10": { rate:0.9752, flagged:"118/121", hfa:0.1917, sfa:0.6833 },
+        "0.25": { rate:0.8678, flagged:"105/121", hfa:0.0833, sfa:0.3417 },
+        "0.50": { rate:0.6529, flagged:"79/121",  hfa:0.0167, sfa:0.1333 }
       },
       by_size: { small:{recall:0.00,n:2}, medium:{recall:0.319,n:72}, large:{recall:0.638,n:105} },
       train_sec: 708.0,
-      notes: "<p>Same as exp1a but batch halved to 8 to de-confound resolution vs batch effect. mAP50 drops from 0.370 → 0.318 confirming batch is a real lever. Sick false alarm at conf=0.25 drops from 53% → 34% — a meaningful specificity improvement, but recall also drops (86.8% same). The earlier impression that '512 looks best' was the batch-16 advantage of exp1a, not the resolution.</p><p>Localization quality on matched pairs is excellent (IoU ~0.75, IoG ~0.89) — the model finds lesions well when it fires; the problem is coverage/recall.</p>"
+      notes: "<p>Same as exp1a but batch halved to 8 to de-confound resolution vs batch effect. mAP50 drops from 0.370 → 0.318, confirming batch is a real lever. Sick false alarm at conf=0.25 drops from 53% → 34% — a meaningful specificity improvement without changing architecture.</p><p>Localization quality on matched pairs is excellent (IoU ~0.75, IoG ~0.89) — the model finds lesions well when it fires; the problem is coverage/recall. Overfitting confirmed: val-mAP peaks ~epoch 12 then degrades.</p>"
     },
     {
       id: "exp1b_1024",
       date: "2026-06-21",
       desc: "YOLOv8n baseline · 1024px · batch 8 · positives only · no aug",
       tags: ["1024 px", "batch 8", "pos-only", "no aug"],
-      config: { model:"YOLOv8n", imgsz:1024, epochs:100, batch:8, aug:"off", amp:"off", negatives:"none", seed:0 },
+      config: { model:"yolov8n.pt", imgsz:1024, batch:8, epochs:100, aug_level:"off", negatives:"none", amp:false, seed:0, patience:50 },
+      augKwargs: null,
       detection: {
-        overall: { mAP50:0.3567, mAP50_95:0.1594, precision:0.3138, recall:0.4978 },
-        active:  { mAP50:0.5914, mAP50_95:0.2710, precision:0.4611, recall:0.7254 },
-        obsolete:{ mAP50:0.1221, mAP50_95:0.0478, precision:0.1666, recall:0.2703 }
+        overall:  { mAP50:0.3567, mAP50_95:0.1594, precision:0.3138, recall:0.4978 },
+        active:   { mAP50:0.5914, mAP50_95:0.2710, precision:0.4611, recall:0.7254 },
+        obsolete: { mAP50:0.1221, mAP50_95:0.0478, precision:0.1666, recall:0.2703 }
       },
-      localization: {
-        overall: { iou:0.7283, iop:0.8725, iog:0.8345, n_matched:91 }
-      },
+      localization: { iou:0.7283, iop:0.8725, iog:0.8345, n_matched:91 },
       screening: {
-        "0.10": { tb_detect_rate:0.9174, tb_flagged:"111/121", healthy_false_alarm:0.2667, healthy_flagged:"32/120", sick_false_alarm:0.4500, sick_flagged:"54/120" },
-        "0.25": { tb_detect_rate:0.8430, tb_flagged:"102/121", healthy_false_alarm:0.1000, healthy_flagged:"12/120", sick_false_alarm:0.2333, sick_flagged:"28/120" },
-        "0.50": { tb_detect_rate:0.6529, tb_flagged:"79/121",  healthy_false_alarm:0.0250, healthy_flagged:"3/120",  sick_false_alarm:0.0833, sick_flagged:"10/120" }
+        "0.10": { rate:0.9174, flagged:"111/121", hfa:0.2667, sfa:0.4500 },
+        "0.25": { rate:0.8430, flagged:"102/121", hfa:0.1000, sfa:0.2333 },
+        "0.50": { rate:0.6529, flagged:"79/121",  hfa:0.0250, sfa:0.0833 }
       },
       by_size: { small:{recall:0.00,n:2}, medium:{recall:0.319,n:72}, large:{recall:0.648,n:105} },
       train_sec: 2554.8,
-      notes: "<p>At equal batch (8), 1024 beats 512 on every detection metric. Best recall of the exp1 family at 49.8% overall and 72.5% on active lesions. Sick false alarm at conf=0.25 narrows to 23% vs 34% for 512@8 — higher resolution gives more specific predictions.</p><p>Overfitting confirmed: val cls-loss bottomed ~epoch 12 then nearly doubled; val mAP50 peaked at epoch 12. best.pt captures the peak. More epochs hurt. Primary levers for improvement: augmentation (biggest), more data, partial freeze.</p><p>Training cost: ~42 min vs ~11 min for 512@16. Resolution is a quality ceiling, not the daily workhorse.</p>"
+      notes: "<p>At equal batch (8), 1024 beats 512 on every detection metric. Best recall of the exp1 family at 49.8% overall and 72.5% on active lesions. Sick false alarm at conf=0.25 narrows to 23% vs 34% for 512@8 — higher resolution gives more specific predictions.</p><p>Overfitting confirmed: val cls-loss bottomed ~epoch 12 then nearly doubled. Augmentation is the primary recommended next lever. Training cost: ~42 min vs ~11 min for 512@16.</p>"
     },
+    // ── exp2 ──────────────────────────────────────────────────────────────────
     {
       id: "exp2_neg1_512",
       date: "2026-06-21",
-      desc: "YOLOv8n · 512px · batch 16 · negatives added 1:1 (50% sick / 50% healthy)",
+      desc: "YOLOv8n · 512px · batch 16 · negatives 1:1 (280 sick + 279 healthy)",
       tags: ["512 px", "batch 16", "+ negatives 1:1", "no aug"],
-      config: { model:"YOLOv8n", imgsz:512, epochs:100, batch:16, aug:"off", amp:"off", negatives:"1:1 (280 sick + 279 healthy)", seed:0 },
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:100, aug_level:"off", negatives:"1:1 (280 sick + 279 healthy)", amp:false, seed:0, patience:50 },
+      augKwargs: null,
       detection: {
-        overall: { mAP50:0.2693, mAP50_95:0.1146, precision:0.3470, recall:0.2629 },
-        active:  { mAP50:0.4789, mAP50_95:0.2070, precision:0.5729, recall:0.4718 },
-        obsolete:{ mAP50:0.0596, mAP50_95:0.0221, precision:0.1210, recall:0.0541 }
+        overall:  { mAP50:0.2693, mAP50_95:0.1146, precision:0.3470, recall:0.2629 },
+        active:   { mAP50:0.4789, mAP50_95:0.2070, precision:0.5729, recall:0.4718 },
+        obsolete: { mAP50:0.0596, mAP50_95:0.0221, precision:0.1210, recall:0.0541 }
       },
-      localization: {
-        overall: { iou:0.7346, iop:0.8552, iog:0.8594, n_matched:56 }
-      },
+      localization: { iou:0.7346, iop:0.8552, iog:0.8594, n_matched:56 },
       screening: {
-        "0.10": { tb_detect_rate:0.6198, tb_flagged:"75/121",  healthy_false_alarm:0.0000, healthy_flagged:"0/120",  sick_false_alarm:0.0250, sick_flagged:"3/120" },
-        "0.25": { tb_detect_rate:0.5455, tb_flagged:"66/121",  healthy_false_alarm:0.0000, healthy_flagged:"0/120",  sick_false_alarm:0.0083, sick_flagged:"1/120" },
-        "0.50": { tb_detect_rate:0.4628, tb_flagged:"56/121",  healthy_false_alarm:0.0000, healthy_flagged:"0/120",  sick_false_alarm:0.0000, sick_flagged:"0/120" }
+        "0.10": { rate:0.6198, flagged:"75/121",  hfa:0.0000, sfa:0.0250 },
+        "0.25": { rate:0.5455, flagged:"66/121",  hfa:0.0000, sfa:0.0083 },
+        "0.50": { rate:0.4628, flagged:"56/121",  hfa:0.0000, sfa:0.0000 }
       },
       by_size: { small:{recall:0.00,n:2}, medium:{recall:0.125,n:72}, large:{recall:0.448,n:105} },
       train_sec: 1224.8,
-      notes: "<p>Adding 1:1 negatives to training causes a dramatic specificity improvement: false alarm on healthy drops from 27% → 0%, sick from 53% → 0.8% at conf=0.25. The model has learned to suppress non-TB lungs.</p><p>However, recall collapses: TB caught drops from 87% → 55% at conf=0.25. The model trades sensitivity for specificity — it is now conservative. This is the classic positives-vs-negatives balance problem.</p>"
+      notes: "<p>Adding 1:1 negatives causes a dramatic specificity improvement: false alarm on healthy drops from 27% → 0%, sick from 53% → 0.8% at conf=0.25. The model has learned to suppress non-TB lungs.</p><p>However, recall collapses: TB caught drops from 87% → 55% at conf=0.25. Classic sensitivity/specificity tradeoff. Decision: specificity belongs in the classifier; keep the detector positives-only and sensitive.</p>"
     },
     {
       id: "exp2_neg0.5_512",
       date: "2026-06-22",
       desc: "YOLOv8n · 512px · batch 16 · negatives 0.5:1 (140 sick + 140 healthy)",
       tags: ["512 px", "batch 16", "+ negatives 0.5:1", "no aug"],
-      config: { model:"YOLOv8n", imgsz:512, epochs:100, batch:16, aug:"off", amp:"off", negatives:"0.5:1 (140 sick + 140 healthy)", seed:0 },
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:100, aug_level:"off", negatives:"0.5:1 (140 sick + 140 healthy)", amp:false, seed:0, patience:50 },
+      augKwargs: null,
       detection: {
-        overall: { mAP50:0.3139, mAP50_95:0.1604, precision:0.3841, recall:0.3379 },
-        active:  { mAP50:0.5185, mAP50_95:0.2757, precision:0.5973, recall:0.4596 },
-        obsolete:{ mAP50:0.1092, mAP50_95:0.0450, precision:0.1709, recall:0.2162 }
+        overall:  { mAP50:0.3139, mAP50_95:0.1604, precision:0.3841, recall:0.3379 },
+        active:   { mAP50:0.5185, mAP50_95:0.2757, precision:0.5973, recall:0.4596 },
+        obsolete: { mAP50:0.1092, mAP50_95:0.0450, precision:0.1709, recall:0.2162 }
       },
-      localization: {
-        overall: { iou:0.7589, iop:0.8501, iog:0.8875, n_matched:44 }
-      },
+      localization: { iou:0.7589, iop:0.8501, iog:0.8875, n_matched:44 },
       screening: {
-        "0.10": { tb_detect_rate:0.6033, tb_flagged:"73/121",  healthy_false_alarm:0.0167, healthy_flagged:"2/120",  sick_false_alarm:0.0750, sick_flagged:"9/120" },
-        "0.25": { tb_detect_rate:0.4959, tb_flagged:"60/121",  healthy_false_alarm:0.0167, healthy_flagged:"2/120",  sick_false_alarm:0.0417, sick_flagged:"5/120" },
-        "0.50": { tb_detect_rate:0.3636, tb_flagged:"44/121",  healthy_false_alarm:0.0083, healthy_flagged:"1/120",  sick_false_alarm:0.0167, sick_flagged:"2/120" },
-        "0.00": { tb_detect_rate:0.8926, tb_flagged:"108/121", healthy_false_alarm:0.1167, healthy_flagged:"14/120", sick_false_alarm:0.3667, sick_flagged:"44/120" }
+        "0.10": { rate:0.6033, flagged:"73/121",  hfa:0.0167, sfa:0.0750 },
+        "0.25": { rate:0.4959, flagged:"60/121",  hfa:0.0167, sfa:0.0417 },
+        "0.50": { rate:0.3636, flagged:"44/121",  hfa:0.0083, sfa:0.0167 }
       },
       by_size: { small:{recall:0.00,n:2}, medium:{recall:0.181,n:72}, large:{recall:0.295,n:105} },
       train_sec: 940.6,
-      notes: "<p>Halving the negative ratio (0.5:1 vs 1:1) partially recovers specificity while keeping false alarms low. At conf=0.25: healthy FA holds at 1.7%, sick FA at 4.2% — still dramatically better than the positives-only baseline (27% healthy, 53% sick).</p><p>However TB recall is still hurt vs the no-negatives runs: only 60/121 caught at conf=0.25 vs 105/121 for exp1a. The model is still trading sensitivity for specificity. At conf=0.10 we get 73/121 TB caught with still-low FAs (1.7% healthy, 7.5% sick) — a more viable operating point than 0.25 for this ratio.</p><p>Interestingly, obsolete recall (0.216) recovers vs the 1:1 run (0.054) — fewer negatives let the model retain some of its latent TB signal. Key finding: negative ratio is a direct dial on the sensitivity/specificity tradeoff. Next: augmentation to improve recall without sacrificing specificity.</p>"
+      notes: "<p>Halving the negative ratio (0.5:1 vs 1:1) partially recovers specificity while keeping false alarms low. At conf=0.25: healthy FA holds at 1.7%, sick FA at 4.2% — still dramatically better than the positives-only baseline.</p><p>TB recall is still hurt vs no-negatives: only 60/121 caught at conf=0.25. Negative ratio is a direct dial on the sensitivity/specificity tradeoff. Next lever: augmentation.</p>"
     },
     {
       id: "exp2_neg0.25_512",
       date: "2026-06-22",
       desc: "YOLOv8n · 512px · batch 16 · negatives 0.25:1 (70 sick + 70 healthy)",
       tags: ["512 px", "batch 16", "+ negatives 0.25:1", "no aug"],
-      config: { model:"YOLOv8n", imgsz:512, epochs:100, batch:16, aug:"off", amp:"off", negatives:"0.25:1 (70 sick + 70 healthy)", seed:0 },
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:100, aug_level:"off", negatives:"0.25:1 (70 sick + 70 healthy)", amp:false, seed:0, patience:50 },
+      augKwargs: null,
       detection: {
-        overall: { mAP50:0.2994, mAP50_95:0.1445, precision:0.2921, recall:0.3828 },
-        active:  { mAP50:0.5044, mAP50_95:0.2517, precision:0.4509, recall:0.5493 },
-        obsolete:{ mAP50:0.0943, mAP50_95:0.0372, precision:0.1333, recall:0.2162 }
+        overall:  { mAP50:0.2994, mAP50_95:0.1445, precision:0.2921, recall:0.3828 },
+        active:   { mAP50:0.5044, mAP50_95:0.2517, precision:0.4509, recall:0.5493 },
+        obsolete: { mAP50:0.0943, mAP50_95:0.0372, precision:0.1333, recall:0.2162 }
       },
-      localization: {
-        overall: { iou:0.7570, iop:0.8385, iog:0.9072, n_matched:38 }
-      },
+      localization: { iou:0.7570, iop:0.8385, iog:0.9072, n_matched:38 },
       screening: {
-        "0.10": { tb_detect_rate:0.4876, tb_flagged:"59/121", healthy_false_alarm:0.0083, healthy_flagged:"1/120", sick_false_alarm:0.0583, sick_flagged:"7/120" },
-        "0.25": { tb_detect_rate:0.4050, tb_flagged:"49/121", healthy_false_alarm:0.0000, healthy_flagged:"0/120", sick_false_alarm:0.0333, sick_flagged:"4/120" },
-        "0.50": { tb_detect_rate:0.2975, tb_flagged:"36/121", healthy_false_alarm:0.0000, healthy_flagged:"0/120", sick_false_alarm:0.0167, sick_flagged:"2/120" }
+        "0.10": { rate:0.4876, flagged:"59/121", hfa:0.0083, sfa:0.0583 },
+        "0.25": { rate:0.4050, flagged:"49/121", hfa:0.0000, sfa:0.0333 },
+        "0.50": { rate:0.2975, flagged:"36/121", hfa:0.0000, sfa:0.0167 }
       },
       by_size: { small:{recall:0.00,n:2}, medium:{recall:0.0556,n:72}, large:{recall:0.3238,n:105} },
       train_sec: 872.2,
-      notes: "<p>Halving the negative ratio further to 0.25:1 (140 negatives total, 70 sick + 70 healthy). Specificity remains very strong: healthy false alarm rate @0.25 is 0.0% (0/120) and sick false alarm rate is 3.3% (4/120).</p><p>However, recall is heavily suppressed (40.5% detection rate, 49/121 TB caught @0.25). The model remains highly specific but lacks sensitivity (underdetects lesions). Obsolete recall is 21.62%, matching the 0.5:1 ratio. This suggests that even a small negative training set (0.25:1) makes the model highly conservative without augmentation to teach it what actual TB lesions look like in varied conditions.</p>"
+      notes: "<p>Halving negative ratio to 0.25:1 (140 total). Specificity remains very strong: healthy FA @0.25 = 0.0%, sick FA = 3.3%. However recall is heavily suppressed: only 40.5% detection rate, 49/121 TB caught @0.25. Confirms the negatives lever is too costly to recall — closes the negatives question for the detector. Specificity belongs in the classifier stage.</p>"
+    },
+    // ── exp3 augmentation screen ──────────────────────────────────────────────
+    {
+      id: "exp3_off_512",
+      date: "2026-06-24",
+      desc: "YOLOv8n · 512px · batch 16 · no aug · 200 epochs (control arm)",
+      tags: ["512 px", "batch 16", "pos-only", "no aug", "200 epochs"],
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:200, aug_level:"off", negatives:"none", amp:false, seed:0, patience:100 },
+      augKwargs: { degrees:0, translate:0, scale:0, fliplr:0, mosaic:0, mixup:0, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.3349, mAP50_95:null, precision:0.2981, recall:0.4896 },
+        active:   { mAP50:0.5319, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.1378, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7139, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:0.9752, flagged:"118/121", hfa:0.6500, sfa:0.6083 },
+        "0.25": { rate:0.8760, flagged:"106/121", hfa:0.2333, sfa:0.3417 },
+        "0.50": { rate:0.6364, flagged:"77/121",  hfa:0.0333, sfa:0.0917 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.389,n:72}, large:{recall:0.667,n:105} },
+      train_sec: 710.5,
+      notes: "<p>Control arm for the augmentation screen: re-runs the exp1 floor at 512@16 with 200 epochs. Active mAP50 = 0.532, confirming the floor (slight variation from exp1a). Val-mAP still peaks by epoch ~12, overfitting pattern unchanged — longer training doesn't help without augmentation. This is the clean baseline all other aug arms are compared against.</p>"
+    },
+    {
+      id: "exp3_geo_512",
+      date: "2026-06-24",
+      desc: "YOLOv8n · 512px · batch 16 · geometry aug · 200 epochs",
+      tags: ["512 px", "batch 16", "pos-only", "geo aug"],
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:200, aug_level:"geo", negatives:"none", amp:false, seed:0, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:0, mixup:0, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.5143, mAP50_95:null, precision:0.6690, recall:0.4508 },
+        active:   { mAP50:0.7083, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.3203, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7329, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:0.9752, flagged:"118/121", hfa:0.1167, sfa:0.5500 },
+        "0.25": { rate:0.9421, flagged:"114/121", hfa:0.0583, sfa:0.3250 },
+        "0.50": { rate:0.8678, flagged:"105/121", hfa:0.0333, sfa:0.1417 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.500,n:72}, large:{recall:0.771,n:105} },
+      train_sec: 1286.9,
+      notes: "<p>Geometry augmentation only (rotate ±10°, translate 0.1, scale 0.5, fliplr 0.5). Active mAP50 jumps from 0.532 → 0.708 — the single biggest lever of the entire experiment series so far. Val-mAP peak shifts from epoch ~12 to ~110, confirming augmentation directly fixes the overfitting problem.</p><p>Medium lesion recall improves from 38.9% → 50.0%. High sick FA (32.5%) is expected for positives-only training; the model is kept sensitive. Finalist carried to multi-seed confirmation in exp4.</p>"
+    },
+    {
+      id: "exp3_geo_photo_512",
+      date: "2026-06-24",
+      desc: "YOLOv8n · 512px · batch 16 · geo + brightness aug · 200 epochs",
+      tags: ["512 px", "batch 16", "pos-only", "geo+brightness aug"],
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:200, aug_level:"geo_photo", negatives:"none", amp:false, seed:0, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:0, mixup:0, hsv_v:0.4 },
+      detection: {
+        overall:  { mAP50:0.4447, mAP50_95:null, precision:0.3310, recall:0.5460 },
+        active:   { mAP50:0.6772, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.2121, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7422, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:0.9835, flagged:"119/121", hfa:0.2833, sfa:0.6750 },
+        "0.25": { rate:0.9339, flagged:"113/121", hfa:0.0667, sfa:0.4250 },
+        "0.50": { rate:0.7190, flagged:"87/121",  hfa:0.0167, sfa:0.1417 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.361,n:72}, large:{recall:0.724,n:105} },
+      train_sec: 1167.6,
+      notes: "<p>Geo + brightness augmentation (hsv_v=0.4). Adding photometric augmentation to geometry underperforms plain geo: active mAP50 0.677 vs 0.708, with worse sick FA (42.5% vs 32.5%). Brightness on grayscale CXRs doesn't add meaningful invariance — CXR images lack colour channels to augment meaningfully. Domain pruning result: brightness ruled out.</p>"
+    },
+    {
+      id: "exp3_mosaic_512",
+      date: "2026-06-24",
+      desc: "YOLOv8n · 512px · batch 16 · mosaic aug · 200 epochs · seed 0",
+      tags: ["512 px", "batch 16", "pos-only", "mosaic aug", "seed 0"],
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:200, aug_level:"mosaic", negatives:"none", amp:false, seed:0, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:1.0, close_mosaic:10, mixup:0, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.5061, mAP50_95:0.2336, precision:0.4982, recall:0.5460 },
+        active:   { mAP50:0.7406, mAP50_95:0.3763, precision:0.6751, recall:0.7465 },
+        obsolete: { mAP50:0.2716, mAP50_95:0.0909, precision:0.3213, recall:0.3455 }
+      },
+      localization: { iou:0.7296, iop:0.8130, iog:0.8952, n_matched:118 },
+      screening: {
+        "0.10": { rate:0.9917, flagged:"120/121", hfa:0.1333, sfa:0.5083 },
+        "0.25": { rate:0.9752, flagged:"118/121", hfa:0.0583, sfa:0.2750 },
+        "0.50": { rate:0.8678, flagged:"105/121", hfa:0.0333, sfa:0.1417 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.514,n:72}, large:{recall:0.771,n:105} },
+      train_sec: 1301.8,
+      notes: "<p>Geo + mosaic (prob=1.0, close_mosaic=10). Active mAP50 = 0.741 — best of the 5-arm augmentation screen. Mosaic composites 4 training images per sample, forcing detection of partial/context-free lesions and dramatically expanding effective dataset diversity.</p><p>TB caught @0.25: 118/121 (97.5% detection rate). Val-mAP peak shifts to ~epoch 150 — augmentation effectively solves the overfitting. Medium recall doubles from 38.9% to 51.4%. Finalist carried to multi-seed confirmation in exp4.</p>"
+    },
+    {
+      id: "exp3_default_512",
+      date: "2026-06-24",
+      desc: "YOLOv8n · 512px · batch 16 · Ultralytics default aug · 200 epochs",
+      tags: ["512 px", "batch 16", "pos-only", "default aug"],
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:200, aug_level:"default", negatives:"none", amp:false, seed:0, patience:100 },
+      augKwargs: { note:"Ultralytics kitchen sink (full albumentations Blur/CLAHE/etc.)" },
+      detection: {
+        overall:  { mAP50:0.4382, mAP50_95:null, precision:0.3993, recall:0.4913 },
+        active:   { mAP50:0.6998, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.1766, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7572, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:0.9669, flagged:"117/121", hfa:0.1583, sfa:0.4833 },
+        "0.25": { rate:0.8595, flagged:"104/121", hfa:0.0333, sfa:0.2917 },
+        "0.50": { rate:0.6281, flagged:"76/121",  hfa:0.0000, sfa:0.0500 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.333,n:72}, large:{recall:0.695,n:105} },
+      train_sec: 1265.9,
+      notes: "<p>Ultralytics default augmentation ('kitchen sink' — full albumentations stack including Blur, CLAHE, colour jitter, etc.). Despite the largest augmentation volume, underperforms plain geo alone: active mAP50 0.700 vs 0.708, worse TB caught (104/121 vs 114/121), similar medium recall (33.3% vs 50.0% for geo).</p><p>Adding domain-irrelevant noise augmentations confuses the model without providing useful invariances for grayscale medical images. Ruled out.</p>"
+    },
+    // ── exp3 multi-seed (mosaic at 512) ──────────────────────────────────────
+    {
+      id: "exp3_mosaic_512_s1",
+      date: "2026-06-26",
+      desc: "YOLOv8n · 512px · batch 16 · mosaic aug · 200 epochs · seed 1",
+      tags: ["512 px", "batch 16", "pos-only", "mosaic aug", "seed 1"],
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:200, aug_level:"mosaic", negatives:"none", amp:false, seed:1, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:1.0, close_mosaic:10, mixup:0, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.4618, mAP50_95:null, precision:0.5624, recall:0.4785 },
+        active:   { mAP50:0.6831, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.2405, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7374, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:0.9669, flagged:"117/121", hfa:0.1333, sfa:0.5583 },
+        "0.25": { rate:0.9504, flagged:"115/121", hfa:0.0917, sfa:0.3917 },
+        "0.50": { rate:0.8430, flagged:"102/121", hfa:0.0167, sfa:0.2083 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.431,n:72}, large:{recall:0.781,n:105} },
+      train_sec: 1291.9,
+      notes: "<p>Multi-seed validation of mosaic@512: seed 1. Active mAP50 = 0.683. Combined with s0 (0.741) and s2 (0.698), the 512@16 mosaic three-seed band is [0.683, 0.741] — showing more seed-to-seed noise than the 1024@8 runs (±0.029 vs ±0.008). This variance informed the final decision to use 512 with the caveat of higher noise.</p>"
+    },
+    {
+      id: "exp3_mosaic_512_s2",
+      date: "2026-06-26",
+      desc: "YOLOv8n · 512px · batch 16 · mosaic aug · 200 epochs · seed 2",
+      tags: ["512 px", "batch 16", "pos-only", "mosaic aug", "seed 2"],
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:200, aug_level:"mosaic", negatives:"none", amp:false, seed:2, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:1.0, close_mosaic:10, mixup:0, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.4518, mAP50_95:null, precision:0.4255, recall:0.5278 },
+        active:   { mAP50:0.6976, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.2060, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7453, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:1.0000, flagged:"121/121", hfa:0.2250, sfa:0.5000 },
+        "0.25": { rate:0.9669, flagged:"117/121", hfa:0.0750, sfa:0.3750 },
+        "0.50": { rate:0.8595, flagged:"104/121", hfa:0.0250, sfa:0.2333 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.417,n:72}, large:{recall:0.790,n:105} },
+      train_sec: 1297.5,
+      notes: "<p>Multi-seed validation of mosaic@512: seed 2. Active mAP50 = 0.698. Three-seed band for mosaic@512: [0.683, 0.741]. 512@16 and 1024@8 have similar average active mAP50, but 512 shows higher noise (±0.029) vs 1024 (±0.008). Both are valid; final config chose 512 for faster training.</p>"
+    },
+    // ── exp3 mosaic_mixup multi-seed ──────────────────────────────────────────
+    {
+      id: "exp3_mosaic_mixup_512_s0",
+      date: "2026-06-26",
+      desc: "YOLOv8n · 512px · batch 16 · mosaic+mixup aug · seed 0",
+      tags: ["512 px", "batch 16", "pos-only", "mosaic+mixup", "seed 0"],
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:200, aug_level:"mosaic_mixup", negatives:"none", amp:false, seed:0, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:1.0, close_mosaic:10, mixup:0.1, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.4587, mAP50_95:null, precision:0.5720, recall:0.4332 },
+        active:   { mAP50:0.7238, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.1937, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7391, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:1.0000, flagged:"121/121", hfa:0.2417, sfa:0.4667 },
+        "0.25": { rate:0.9421, flagged:"114/121", hfa:0.1083, sfa:0.2500 },
+        "0.50": { rate:0.8017, flagged:"97/121",  hfa:0.0250, sfa:0.0750 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.431,n:72}, large:{recall:0.743,n:105} },
+      train_sec: 1490.0,
+      notes: "<p>Mosaic + mixup (prob=0.1) at 512@16, seed 0. Active mAP50 = 0.724 — appears better than plain mosaic s0 (0.741) on first look, but this is single-seed comparison. Multi-seed analysis rules mixup out.</p>"
+    },
+    {
+      id: "exp3_mosaic_mixup_512_s1",
+      date: "2026-06-26",
+      desc: "YOLOv8n · 512px · batch 16 · mosaic+mixup aug · seed 1",
+      tags: ["512 px", "batch 16", "pos-only", "mosaic+mixup", "seed 1"],
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:200, aug_level:"mosaic_mixup", negatives:"none", amp:false, seed:1, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:1.0, close_mosaic:10, mixup:0.1, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.4371, mAP50_95:null, precision:0.4756, recall:0.4467 },
+        active:   { mAP50:0.6966, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.1777, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7353, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:1.0000, flagged:"121/121", hfa:0.2417, sfa:0.6333 },
+        "0.25": { rate:0.9917, flagged:"120/121", hfa:0.1083, sfa:0.4250 },
+        "0.50": { rate:0.9339, flagged:"113/121", hfa:0.0167, sfa:0.1667 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.458,n:72}, large:{recall:0.762,n:105} },
+      train_sec: 1714.3,
+      notes: "<p>Mosaic + mixup at 512@16, seed 1. Active mAP50 = 0.697. Three-seed mosaic_mixup band: [0.697, 0.757]. Compared against plain mosaic band [0.683, 0.741] — the bands fully overlap, meaning mixup adds no reliable improvement. Mixup ruled out.</p>"
+    },
+    {
+      id: "exp3_mosaic_mixup_512_s2",
+      date: "2026-06-26",
+      desc: "YOLOv8n · 512px · batch 16 · mosaic+mixup aug · seed 2",
+      tags: ["512 px", "batch 16", "pos-only", "mosaic+mixup", "seed 2"],
+      config: { model:"yolov8n.pt", imgsz:512, batch:16, epochs:200, aug_level:"mosaic_mixup", negatives:"none", amp:false, seed:2, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:1.0, close_mosaic:10, mixup:0.1, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.5166, mAP50_95:null, precision:0.5482, recall:0.5319 },
+        active:   { mAP50:0.7566, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.2767, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7383, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:1.0000, flagged:"121/121", hfa:0.1083, sfa:0.5917 },
+        "0.25": { rate:0.9669, flagged:"117/121", hfa:0.0583, sfa:0.3667 },
+        "0.50": { rate:0.8678, flagged:"105/121", hfa:0.0250, sfa:0.1583 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.500,n:72}, large:{recall:0.857,n:105} },
+      train_sec: 1568.5,
+      notes: "<p>Mosaic + mixup at 512@16, seed 2. Active mAP50 = 0.757 — the highest of any run, but confirmed as single-seed luck. The three-seed mosaic_mixup band [0.697–0.757] fully overlaps with plain mosaic [0.683–0.741]. Mixup adds nothing reliable. Ruled out.</p>"
+    },
+    // ── exp4 geo multi-seed at 1024 ──────────────────────────────────────────
+    {
+      id: "exp4_posonly_geo_1024_s0",
+      date: "2026-06-25",
+      desc: "YOLOv8n · 1024px · batch 8 · geo aug · positives-only · seed 0",
+      tags: ["1024 px", "batch 8", "pos-only", "geo aug", "seed 0"],
+      config: { model:"yolov8n.pt", imgsz:1024, batch:8, epochs:200, aug_level:"geo", negatives:"none", amp:false, seed:0, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:0, mixup:0, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.4300, mAP50_95:null, precision:0.2707, recall:0.5266 },
+        active:   { mAP50:0.6707, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.1892, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7347, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:0.9835, flagged:"119/121", hfa:0.1167, sfa:0.5000 },
+        "0.25": { rate:0.9421, flagged:"114/121", hfa:0.0167, sfa:0.2750 },
+        "0.50": { rate:0.6694, flagged:"81/121",  hfa:0.0000, sfa:0.0750 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.431,n:72}, large:{recall:0.724,n:105} },
+      train_sec: 4679.6,
+      notes: "<p>Multi-seed confirmation of geo augmentation at 1024@8, seed 0. Active mAP50 = 0.671. The three-seed geo band at 1024: [0.667, 0.671] — very tight (±0.002), confirming low variance at 1024 resolution. Best healthy FA at this conf: 1.7%.</p>"
+    },
+    {
+      id: "exp4_posonly_geo_1024_s1",
+      date: "2026-06-25",
+      desc: "YOLOv8n · 1024px · batch 8 · geo aug · positives-only · seed 1",
+      tags: ["1024 px", "batch 8", "pos-only", "geo aug", "seed 1"],
+      config: { model:"yolov8n.pt", imgsz:1024, batch:8, epochs:200, aug_level:"geo", negatives:"none", amp:false, seed:1, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:0, mixup:0, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.4244, mAP50_95:null, precision:0.3847, recall:0.4870 },
+        active:   { mAP50:0.6705, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.1782, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7345, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:0.9835, flagged:"119/121", hfa:0.2167, sfa:0.3833 },
+        "0.25": { rate:0.9339, flagged:"113/121", hfa:0.0500, sfa:0.2083 },
+        "0.50": { rate:0.6529, flagged:"79/121",  hfa:0.0000, sfa:0.0333 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.486,n:72}, large:{recall:0.705,n:105} },
+      train_sec: 4568.0,
+      notes: "<p>Geo at 1024@8, seed 1. Active mAP50 = 0.671. Best sick FA of the geo runs: 20.8% at conf=0.25. Geo band at 1024 across 3 seeds: [0.667, 0.671] — consistently below mosaic's [0.683, 0.699] with non-overlapping ranges.</p>"
+    },
+    {
+      id: "exp4_posonly_geo_1024_s2",
+      date: "2026-06-25",
+      desc: "YOLOv8n · 1024px · batch 8 · geo aug · positives-only · seed 2",
+      tags: ["1024 px", "batch 8", "pos-only", "geo aug", "seed 2"],
+      config: { model:"yolov8n.pt", imgsz:1024, batch:8, epochs:200, aug_level:"geo", negatives:"none", amp:false, seed:2, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:0, mixup:0, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.4493, mAP50_95:null, precision:0.4826, recall:0.4867 },
+        active:   { mAP50:0.6671, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.2314, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7237, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:0.9835, flagged:"119/121", hfa:0.2833, sfa:0.4833 },
+        "0.25": { rate:0.9587, flagged:"116/121", hfa:0.1583, sfa:0.3250 },
+        "0.50": { rate:0.8512, flagged:"103/121", hfa:0.0500, sfa:0.1333 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.444,n:72}, large:{recall:0.762,n:105} },
+      train_sec: 5056.8,
+      notes: "<p>Geo at 1024@8, seed 2. Active mAP50 = 0.667 — lowest of the geo runs. Confirms geo's tight multi-seed band [0.667, 0.671]. Geo is consistently below mosaic's band [0.683, 0.699] — the bands do not overlap, confirming mosaic as the winner. Geo ruled out as the finalist.</p>"
+    },
+    // ── exp4 mosaic multi-seed at 1024 ────────────────────────────────────────
+    {
+      id: "exp4_posonly_mosaic_1024_s0",
+      date: "2026-06-26",
+      desc: "YOLOv8n · 1024px · batch 8 · mosaic aug · positives-only · seed 0",
+      tags: ["1024 px", "batch 8", "pos-only", "mosaic aug", "seed 0"],
+      config: { model:"yolov8n.pt", imgsz:1024, batch:8, epochs:200, aug_level:"mosaic", negatives:"none", amp:false, seed:0, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:1.0, close_mosaic:10, mixup:0, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.4648, mAP50_95:null, precision:0.4567, recall:0.5413 },
+        active:   { mAP50:0.6862, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.2434, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7320, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:0.9917, flagged:"120/121", hfa:0.1333, sfa:0.3833 },
+        "0.25": { rate:0.9752, flagged:"118/121", hfa:0.0750, sfa:0.2583 },
+        "0.50": { rate:0.8843, flagged:"107/121", hfa:0.0167, sfa:0.1250 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.472,n:72}, large:{recall:0.800,n:105} },
+      train_sec: 5085.8,
+      notes: "<p>Multi-seed confirmation of mosaic at 1024@8, seed 0. Active mAP50 = 0.686. Part of the three-seed mosaic vs geo comparison at 1024. 118/121 TB caught at conf=0.25 with 7.5% healthy FA and 25.8% sick FA.</p>"
+    },
+    {
+      id: "exp4_posonly_mosaic_1024_s1",
+      date: "2026-06-26",
+      desc: "YOLOv8n · 1024px · batch 8 · mosaic aug · positives-only · seed 1",
+      tags: ["1024 px", "batch 8", "pos-only", "mosaic aug", "seed 1"],
+      config: { model:"yolov8n.pt", imgsz:1024, batch:8, epochs:200, aug_level:"mosaic", negatives:"none", amp:false, seed:1, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:1.0, close_mosaic:10, mixup:0, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.4289, mAP50_95:null, precision:0.4177, recall:0.5125 },
+        active:   { mAP50:0.6830, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.1748, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7176, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:0.9917, flagged:"120/121", hfa:0.1417, sfa:0.4083 },
+        "0.25": { rate:0.9752, flagged:"118/121", hfa:0.0833, sfa:0.2333 },
+        "0.50": { rate:0.9174, flagged:"111/121", hfa:0.0417, sfa:0.1083 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.486,n:72}, large:{recall:0.781,n:105} },
+      train_sec: 5086.2,
+      notes: "<p>Mosaic at 1024@8, seed 1. Active mAP50 = 0.683 — the lower end of the mosaic@1024 band. Strong specificity at conf=0.50: 4.2% healthy FA and 10.8% sick FA. Mosaic three-seed band: [0.683, 0.699].</p>"
+    },
+    {
+      id: "exp4_posonly_mosaic_1024_s2",
+      date: "2026-06-26",
+      desc: "YOLOv8n · 1024px · batch 8 · mosaic aug · positives-only · seed 2",
+      tags: ["1024 px", "batch 8", "pos-only", "mosaic aug", "seed 2"],
+      config: { model:"yolov8n.pt", imgsz:1024, batch:8, epochs:200, aug_level:"mosaic", negatives:"none", amp:false, seed:2, patience:100 },
+      augKwargs: { degrees:10, translate:0.1, scale:0.5, fliplr:0.5, mosaic:1.0, close_mosaic:10, mixup:0, hsv_v:0 },
+      detection: {
+        overall:  { mAP50:0.4331, mAP50_95:null, precision:0.2985, recall:0.6076 },
+        active:   { mAP50:0.6992, mAP50_95:null, precision:null, recall:null },
+        obsolete: { mAP50:0.1669, mAP50_95:null, precision:null, recall:null }
+      },
+      localization: { iou:0.7297, iop:null, iog:null, n_matched:null },
+      screening: {
+        "0.10": { rate:0.9752, flagged:"118/121", hfa:0.1083, sfa:0.3917 },
+        "0.25": { rate:0.8926, flagged:"108/121", hfa:0.0250, sfa:0.1667 },
+        "0.50": { rate:0.6198, flagged:"75/121",  hfa:0.0000, sfa:0.0583 }
+      },
+      by_size: { small:{recall:0.00,n:2}, medium:{recall:0.458,n:72}, large:{recall:0.686,n:105} },
+      train_sec: 4466.3,
+      notes: "<p>Mosaic at 1024@8, seed 2. Active mAP50 = 0.699 — highest of the three mosaic@1024 seeds. Best specificity of all mosaic runs: 2.5% healthy FA and 16.7% sick FA at conf=0.25. Mosaic band [0.683–0.699] does not overlap geo's [0.667–0.671], confirming mosaic as the augmentation winner with statistical confidence. Decision: mosaic is the augmentation finalist. Final detector config: mosaic @ 512, batch 16.</p>"
     }
   ];
 
-  // ── Helpers ─────────────────────────────────────────────────────────────
-  function fmt(v, decimals=3) {
-    if (v == null) return '—';
-    return typeof v === 'number' ? v.toFixed(decimals) : v;
-  }
-  function pct(v) { return v == null ? '—' : (v * 100).toFixed(1) + '%'; }
-  function colorClass(v, goodThresh, warnThresh) {
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  function fmt(v, d=3) { return v == null ? '—' : (typeof v === 'number' ? v.toFixed(d) : v); }
+  function pct(v)       { return v == null ? '—' : (v * 100).toFixed(1) + '%'; }
+  function colorClass(v, good, warn) {
     if (v == null) return '';
-    if (v >= goodThresh) return 'val-good';
-    if (v >= warnThresh) return 'val-warn';
-    return 'val-bad';
+    return v >= good ? 'val-good' : v >= warn ? 'val-warn' : 'val-bad';
+  }
+  function metricClass(v, good, warn) {
+    if (v == null) return '';
+    return v >= good ? 'good' : v >= warn ? 'warn' : 'bad';
   }
   function faColor(v) {
-    // lower is better for false alarms
     if (v <= 0.05) return 'val-good';
     if (v <= 0.20) return 'val-warn';
     return 'val-bad';
   }
+  function faMetricClass(v) {
+    if (v <= 0.05) return 'good';
+    if (v <= 0.20) return 'warn';
+    return 'bad';
+  }
   function trainTime(sec) {
+    if (!sec) return '—';
     const m = Math.round(sec / 60);
     return m >= 60 ? `${Math.floor(m/60)}h ${m%60}m` : `${m}m`;
   }
 
-  // ── Render table ─────────────────────────────────────────────────────────
-  function buildConfPanel(exp, conf) {
-    const s = exp.screening[conf];
-    if (!s) return '<em style="color:var(--text-dimmer)">No data</em>';
-    return `
-      <div class="detail-grid">
-        <div class="detail-kv"><span class="dk">TB Detect Rate</span><span class="dv ${s.tb_detect_rate>=0.85?'good':s.tb_detect_rate>=0.65?'warn':'bad'}">${pct(s.tb_detect_rate)}</span></div>
-        <div class="detail-kv"><span class="dk">TB Flagged</span><span class="dv">${s.tb_flagged}</span></div>
-        <div class="detail-kv"><span class="dk">Healthy FA</span><span class="dv ${faColor(s.healthy_false_alarm)}">${pct(s.healthy_false_alarm)}</span></div>
-        <div class="detail-kv"><span class="dk">Healthy Flagged</span><span class="dv">${s.healthy_flagged}</span></div>
-        <div class="detail-kv"><span class="dk">Sick FA</span><span class="dv ${faColor(s.sick_false_alarm)}">${pct(s.sick_false_alarm)}</span></div>
-        <div class="detail-kv"><span class="dk">Sick Flagged</span><span class="dv">${s.sick_flagged}</span></div>
+  // ── Build metrics panel (for expanded rows) ───────────────────────────────
+  function buildMetricsPanel(exp) {
+    const d = exp.detection;
+    const loc = exp.localization;
+    const sc = exp.screening;
+    const bs = exp.by_size;
+    const confs = Object.keys(sc);
+
+    const confTabsHtml = confs.map((c, i) =>
+      `<button class="conf-tab${i===1||i===0?' active':''}" onclick="switchConf(this,'${exp.id}','${c}')" data-conf="${c}">@${c}</button>`
+    ).join('');
+    const confPanels = confs.map((c, i) => {
+      const s = sc[c];
+      return `<div class="conf-panel${i===1||i===0?' active':''}" id="cp-${exp.id}-${c}">
+        <div class="metric-row"><span class="metric-label">TB Detect Rate</span><span class="metric-value ${metricClass(s.rate,0.85,0.65)}">${pct(s.rate)}</span></div>
+        <div class="metric-row"><span class="metric-label">TB Flagged</span><span class="metric-value">${s.flagged}</span></div>
+        <div class="metric-row"><span class="metric-label">Healthy FA</span><span class="metric-value ${faMetricClass(s.hfa)}">${pct(s.hfa)}</span></div>
+        <div class="metric-row"><span class="metric-label">Sick FA</span><span class="metric-value ${faMetricClass(s.sfa)}">${pct(s.sfa)}</span></div>
       </div>`;
-  }
+    }).join('');
 
-  function buildDetailHTML(exp) {
-    const d = exp.detection, loc = exp.localization.overall;
-    const confs = Object.keys(exp.screening);
-    const confTabs = confs.map((c,i) =>
-      `<button class="conf-tab${i===1?' active':''}" onclick="switchConf(this,'${exp.id}','${c}')" data-conf="${c}">@${c}</button>`
-    ).join('');
-    const confPanels = confs.map((c,i) =>
-      `<div class="conf-panel${i===1?' active':''}" id="cp-${exp.id}-${c}">${buildConfPanel(exp,c)}</div>`
-    ).join('');
-
-    const cfgRows = Object.entries(exp.config).map(([k,v]) =>
-      `<div class="detail-kv"><span class="dk">${k}</span><span class="dv">${v}</span></div>`
-    ).join('');
+    // fix: default conf-tab active to @0.25 if it exists
+    const hasConf025 = '0.25' in sc;
+    const defaultConf = hasConf025 ? '0.25' : confs[0];
 
     return `
-    <div class="detail-inner">
-      <div class="detail-section">
-        <h4>Detection Metrics</h4>
-        <div class="detail-grid">
-          <div class="detail-kv"><span class="dk">mAP50 (overall)</span><span class="dv ${colorClass(d.overall.mAP50,0.5,0.35)}">${fmt(d.overall.mAP50)}</span></div>
-          <div class="detail-kv"><span class="dk">mAP50-95</span><span class="dv">${fmt(d.overall.mAP50_95)}</span></div>
-          <div class="detail-kv"><span class="dk">Precision</span><span class="dv">${fmt(d.overall.precision)}</span></div>
-          <div class="detail-kv"><span class="dk">Recall</span><span class="dv ${colorClass(d.overall.recall,0.5,0.35)}">${fmt(d.overall.recall)}</span></div>
-          <div class="detail-kv"><span class="dk">Active mAP50</span><span class="dv ${colorClass(d.active.mAP50,0.6,0.4)}">${fmt(d.active.mAP50)}</span></div>
-          <div class="detail-kv"><span class="dk">Active Recall</span><span class="dv">${fmt(d.active.recall)}</span></div>
-          <div class="detail-kv"><span class="dk">Obsolete mAP50</span><span class="dv ${colorClass(d.obsolete.mAP50,0.3,0.15)}">${fmt(d.obsolete.mAP50)}</span></div>
-          <div class="detail-kv"><span class="dk">Obsolete Recall</span><span class="dv">${fmt(d.obsolete.recall)}</span></div>
+    <div class="exp-metrics-panels">
+      <div>
+        <div class="metrics-section">
+          <div class="metrics-section-title">Detection</div>
+          <div class="metric-row"><span class="metric-label">mAP50 (overall)</span><span class="metric-value ${metricClass(d.overall.mAP50,0.5,0.35)}">${fmt(d.overall.mAP50)}</span></div>
+          <div class="metric-row"><span class="metric-label">mAP50-95</span><span class="metric-value">${fmt(d.overall.mAP50_95)}</span></div>
+          <div class="metric-row"><span class="metric-label">Precision</span><span class="metric-value">${fmt(d.overall.precision)}</span></div>
+          <div class="metric-row"><span class="metric-label">Recall</span><span class="metric-value ${metricClass(d.overall.recall,0.5,0.35)}">${fmt(d.overall.recall)}</span></div>
         </div>
-        <br/>
-        <h4>Localization (matched pairs)</h4>
-        <div class="detail-grid">
-          <div class="detail-kv"><span class="dk">IoU</span><span class="dv">${fmt(loc.iou)}</span></div>
-          <div class="detail-kv"><span class="dk">IoP</span><span class="dv">${fmt(loc.iop)}</span></div>
-          <div class="detail-kv"><span class="dk">IoG</span><span class="dv">${fmt(loc.iog)}</span></div>
-          <div class="detail-kv"><span class="dk">Matched Pairs</span><span class="dv">${loc.n_matched}</span></div>
+        <div class="metrics-section">
+          <div class="metrics-section-title">Active TB</div>
+          <div class="metric-row"><span class="metric-label">mAP50</span><span class="metric-value ${metricClass(d.active.mAP50,0.65,0.45)}">${fmt(d.active.mAP50)}</span></div>
+          ${d.active.mAP50_95 != null ? `<div class="metric-row"><span class="metric-label">mAP50-95</span><span class="metric-value">${fmt(d.active.mAP50_95)}</span></div>` : ''}
+          ${d.active.precision != null ? `<div class="metric-row"><span class="metric-label">Precision</span><span class="metric-value">${fmt(d.active.precision)}</span></div>` : ''}
+          ${d.active.recall != null ? `<div class="metric-row"><span class="metric-label">Recall</span><span class="metric-value">${fmt(d.active.recall)}</span></div>` : ''}
+        </div>
+        <div class="metrics-section">
+          <div class="metrics-section-title">Obsolete TB</div>
+          <div class="metric-row"><span class="metric-label">mAP50</span><span class="metric-value ${metricClass(d.obsolete.mAP50,0.3,0.15)}">${fmt(d.obsolete.mAP50)}</span></div>
+          ${d.obsolete.precision != null ? `<div class="metric-row"><span class="metric-label">Precision</span><span class="metric-value">${fmt(d.obsolete.precision)}</span></div>` : ''}
+          ${d.obsolete.recall != null ? `<div class="metric-row"><span class="metric-label">Recall</span><span class="metric-value">${fmt(d.obsolete.recall)}</span></div>` : ''}
         </div>
       </div>
-      <div class="detail-section">
-        <h4>Screening</h4>
-        <div class="conf-tabs">${confTabs}</div>
-        ${confPanels}
-        <br/>
-        <h4>Recall by Lesion Size</h4>
-        <div class="detail-grid">
-          <div class="detail-kv"><span class="dk">Small (n=${exp.by_size.small.n})</span><span class="dv bad">${fmt(exp.by_size.small.recall)}</span></div>
-          <div class="detail-kv"><span class="dk">Medium (n=${exp.by_size.medium.n})</span><span class="dv warn">${fmt(exp.by_size.medium.recall)}</span></div>
-          <div class="detail-kv"><span class="dk">Large (n=${exp.by_size.large.n})</span><span class="dv">${fmt(exp.by_size.large.recall)}</span></div>
+      <div>
+        <div class="metrics-section">
+          <div class="metrics-section-title">Localization (matched pairs)</div>
+          <div class="metric-row"><span class="metric-label">IoU</span><span class="metric-value">${fmt(loc.iou)}</span></div>
+          ${loc.iop != null ? `<div class="metric-row"><span class="metric-label">IoP</span><span class="metric-value">${fmt(loc.iop)}</span></div>` : ''}
+          ${loc.iog != null ? `<div class="metric-row"><span class="metric-label">IoG</span><span class="metric-value">${fmt(loc.iog)}</span></div>` : ''}
+          ${loc.n_matched != null ? `<div class="metric-row"><span class="metric-label">Matched Pairs</span><span class="metric-value">${loc.n_matched}</span></div>` : ''}
         </div>
-        <br/>
-        <h4>Config</h4>
-        <div class="detail-grid">${cfgRows}</div>
-      </div>
-      <div class="detail-section detail-notes">
-        <h4>Notes</h4>
-        <div class="notes-text">${exp.notes}</div>
+        <div class="metrics-section">
+          <div class="metrics-section-title">Screening</div>
+          <div class="conf-tabs" id="ctabs-${exp.id}">${buildConfTabsHtml(exp)}</div>
+          ${buildConfPanelsHtml(exp)}
+        </div>
+        <div class="metrics-section">
+          <div class="metrics-section-title">Recall by Lesion Size</div>
+          <div class="metric-row"><span class="metric-label">Small (n=${bs.small.n})</span><span class="metric-value bad">${fmt(bs.small.recall)}</span></div>
+          <div class="metric-row"><span class="metric-label">Medium (n=${bs.medium.n})</span><span class="metric-value ${metricClass(bs.medium.recall,0.4,0.25)}">${fmt(bs.medium.recall)}</span></div>
+          <div class="metric-row"><span class="metric-label">Large (n=${bs.large.n})</span><span class="metric-value ${metricClass(bs.large.recall,0.6,0.4)}">${fmt(bs.large.recall)}</span></div>
+        </div>
       </div>
     </div>`;
   }
 
+  function buildConfTabsHtml(exp) {
+    const confs = Object.keys(exp.screening);
+    return confs.map((c, i) => {
+      const isDefault = c === '0.25' || (i === 0 && !('0.25' in exp.screening));
+      return `<button class="conf-tab${isDefault ? ' active' : ''}" onclick="switchConf(this,'${exp.id}','${c}')" data-conf="${c}">@${c}</button>`;
+    }).join('');
+  }
+
+  function buildConfPanelsHtml(exp) {
+    const confs = Object.keys(exp.screening);
+    return confs.map((c) => {
+      const s = exp.screening[c];
+      const isDefault = c === '0.25' || (!exp.screening['0.25'] && c === confs[0]);
+      return `<div class="conf-panel${isDefault ? ' active' : ''}" id="cp-${exp.id}-${c}">
+        <div class="metric-row"><span class="metric-label">TB Detect Rate</span><span class="metric-value ${metricClass(s.rate,0.85,0.65)}">${pct(s.rate)}</span></div>
+        <div class="metric-row"><span class="metric-label">TB Flagged</span><span class="metric-value">${s.flagged}</span></div>
+        <div class="metric-row"><span class="metric-label">Healthy FA</span><span class="metric-value ${faMetricClass(s.hfa)}">${pct(s.hfa)}</span></div>
+        <div class="metric-row"><span class="metric-label">Sick FA</span><span class="metric-value ${faMetricClass(s.sfa)}">${pct(s.sfa)}</span></div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Build settings panel ──────────────────────────────────────────────────
+  function buildSettingsPanel(exp) {
+    const c = exp.config;
+    let rows = `
+      <div class="exp-settings-grid">
+        <div class="detail-kv"><span class="dk">Model</span><span class="dv">${c.model}</span></div>
+        <div class="detail-kv"><span class="dk">Image Size</span><span class="dv">${c.imgsz} px</span></div>
+        <div class="detail-kv"><span class="dk">Batch</span><span class="dv">${c.batch}</span></div>
+        <div class="detail-kv"><span class="dk">Epochs</span><span class="dv">${c.epochs}</span></div>
+        <div class="detail-kv"><span class="dk">Aug Level</span><span class="dv">${c.aug_level}</span></div>
+        <div class="detail-kv"><span class="dk">Negatives</span><span class="dv">${c.negatives}</span></div>
+        <div class="detail-kv"><span class="dk">AMP</span><span class="dv">${c.amp ? 'on' : 'off'}</span></div>
+        <div class="detail-kv"><span class="dk">Seed</span><span class="dv">${c.seed}</span></div>
+        <div class="detail-kv"><span class="dk">Patience</span><span class="dv">${c.patience}</span></div>
+      </div>`;
+    if (exp.augKwargs && !exp.augKwargs.note) {
+      const augRows = Object.entries(exp.augKwargs).map(([k,v]) =>
+        `<div class="detail-kv"><span class="dk">${k}</span><span class="dv">${v}</span></div>`
+      ).join('');
+      rows += `<div style="margin-top:1.25rem;padding-top:1rem;border-top:1px dashed var(--border);">
+        <div style="font-size:0.75rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--text);margin-bottom:0.75rem;">Augmentation Parameters</div>
+        <div class="exp-settings-grid">${augRows}</div>
+      </div>`;
+    } else if (exp.augKwargs && exp.augKwargs.note) {
+      rows += `<div style="margin-top:1rem;font-size:0.88rem;color:var(--text-dim);border-top:1px dashed var(--border);padding-top:0.75rem;">${exp.augKwargs.note}</div>`;
+    }
+    return rows;
+  }
+
+  // ── Build full detail HTML (3-button tab layout) ──────────────────────────
+  function buildDetailHTML(exp) {
+    return `
+    <div class="detail-inner" style="display:block;padding:2rem;">
+      <div class="exp-tab-bar">
+        <button class="exp-tab active" data-exp="${exp.id}" data-panel="description" onclick="switchExpTab(this,'${exp.id}')">Description</button>
+        <button class="exp-tab" data-exp="${exp.id}" data-panel="metrics" onclick="switchExpTab(this,'${exp.id}')">Metrics</button>
+        <button class="exp-tab" data-exp="${exp.id}" data-panel="settings" onclick="switchExpTab(this,'${exp.id}')">Settings</button>
+      </div>
+      <div class="exp-panel active" id="ep-${exp.id}-description">
+        <div class="exp-description-panel">${exp.notes}</div>
+      </div>
+      <div class="exp-panel" id="ep-${exp.id}-metrics">
+        ${buildMetricsPanel(exp)}
+      </div>
+      <div class="exp-panel" id="ep-${exp.id}-settings">
+        ${buildSettingsPanel(exp)}
+      </div>
+    </div>`;
+  }
+
+  // ── Render table ──────────────────────────────────────────────────────────
   function renderTable() {
     const tbody = document.getElementById('exp-tbody');
-    // Newest first in the table
     const sorted = [...experiments].reverse();
     sorted.forEach(exp => {
       const s25 = exp.screening["0.25"];
@@ -364,13 +1069,12 @@
       main.setAttribute('onclick', `toggleRow('${exp.id}')`);
       main.innerHTML = `
         <td class="exp-id">${exp.id}</td>
-        <td class="exp-desc">${exp.desc}</td>
         <td class="right ${colorClass(exp.detection.overall.mAP50,0.5,0.35)}">${fmt(exp.detection.overall.mAP50)}</td>
         <td class="right">${fmt(exp.detection.overall.precision)}</td>
         <td class="right ${colorClass(exp.detection.overall.recall,0.5,0.35)}">${fmt(exp.detection.overall.recall)}</td>
-        <td class="right">${s25 ? s25.tb_flagged : '—'}</td>
-        <td class="right ${s25 ? faColor(s25.healthy_false_alarm) : ''}">${s25 ? pct(s25.healthy_false_alarm) : '—'}</td>
-        <td class="right ${s25 ? faColor(s25.sick_false_alarm) : ''}">${s25 ? pct(s25.sick_false_alarm) : '—'}</td>
+        <td class="right">${s25 ? s25.flagged : '—'}</td>
+        <td class="right ${s25 ? faColor(s25.hfa) : ''}">${s25 ? pct(s25.hfa) : '—'}</td>
+        <td class="right ${s25 ? faColor(s25.sfa) : ''}">${s25 ? pct(s25.sfa) : '—'}</td>
         <td class="center val-dim">${trainTime(exp.train_sec)}</td>
         <td style="padding:0.9rem 0.75rem;">
           <button class="expand-btn" id="btn-${exp.id}" aria-label="Expand row" onclick="event.stopPropagation(); toggleRow('${exp.id}')">
@@ -385,13 +1089,32 @@
       detail.className = 'detail-row';
       const cell = document.createElement('td');
       cell.className = 'detail-cell';
-      cell.colSpan = 10;
+      cell.colSpan = 9;
       cell.innerHTML = buildDetailHTML(exp);
       detail.appendChild(cell);
 
       tbody.appendChild(main);
       tbody.appendChild(detail);
     });
+  }
+
+  // ── Interactions ──────────────────────────────────────────────────────────
+  function switchHeroTab(btn) {
+    const hero  = btn.dataset.hero;
+    const panel = btn.dataset.panel;
+    document.querySelectorAll(`.htab[data-hero="${hero}"]`).forEach(t => t.classList.remove('active'));
+    document.querySelectorAll(`[id^="hp-${hero}-"]`).forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`hp-${hero}-${panel}`).classList.add('active');
+  }
+
+  function switchExpTab(btn, expId) {
+    const panel = btn.dataset.panel;
+    const container = btn.closest('.detail-inner');
+    container.querySelectorAll('.exp-tab').forEach(t => t.classList.remove('active'));
+    container.querySelectorAll('.exp-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`ep-${expId}-${panel}`).classList.add('active');
   }
 
   function toggleRow(id) {
@@ -405,11 +1128,19 @@
   }
 
   function switchConf(btn, expId, conf) {
-    // deactivate all tabs/panels for this exp
-    btn.closest('.detail-section').querySelectorAll('.conf-tab').forEach(t => t.classList.remove('active'));
-    btn.closest('.detail-section').querySelectorAll('.conf-panel').forEach(p => p.classList.remove('active'));
+    const section = btn.closest('.metrics-section') || btn.closest('.detail-section');
+    section.querySelectorAll('.conf-tab').forEach(t => t.classList.remove('active'));
+    section.querySelectorAll('.conf-panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(`cp-${expId}-${conf}`).classList.add('active');
+  }
+
+  function toggleYoloSection() {
+    const wrapper = document.getElementById('yolo-experiments-wrapper');
+    const btn     = document.getElementById('btn-yolo-section');
+    const isOpen  = wrapper.style.display !== 'none';
+    wrapper.style.display = isOpen ? 'none' : 'block';
+    btn.classList.toggle('open', !isOpen);
   }
 
   renderTable();
