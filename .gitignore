@@ -1,5 +1,6 @@
 # Raw dataset — 7 GB, public download (see README). Never committed.
-data/
+# Leading slash = repo-root only, so it does NOT also ignore site/src/data/.
+/data/
 
 # Generated, rebuildable (converted labels, splits.json, materialised trees)
 yolo_datasets/
