@@ -1,0 +1,36 @@
+<!-- @dsCard group="Research Site" viewport="1280x760" name="Research site — overview" subtitle="The project page in the new calm look" -->
+<!-- @startingPoint section="Research site" subtitle="Full TB-detection research page (Overview / Results / Data / References)" viewport="1280x860" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TB Detection — Research project</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-sans); transition: background var(--transition), color var(--transition); }
+  ::selection { background: var(--primary-tint-2); }
+  a { color: inherit; }
+  .nav-link { display: flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.8rem; border-radius: var(--r); font-size: var(--text-sm); font-weight: var(--w-medium); font-family: var(--font-sans); color: var(--ink-2); background: transparent; border: none; cursor: pointer; transition: background var(--transition), color var(--transition); }
+  .nav-link:hover { background: var(--paper-2); }
+  .nav-link.active, .nav-link.active:hover { background: var(--primary-tint); color: var(--primary); }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" src="data.js.jsx"></script>
+  <script type="text/babel" src="Shell.jsx"></script>
+  <script type="text/babel" src="OverviewPage.jsx"></script>
+  <script type="text/babel" src="ResultsPage.jsx"></script>
+  <script type="text/babel" src="DataPage.jsx"></script>
+  <script type="text/babel" src="ReferencesPage.jsx"></script>
+  <script type="text/babel">
+    const { App } = window;
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

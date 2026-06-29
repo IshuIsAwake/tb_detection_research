@@ -1,0 +1,12 @@
+# dependencies
+node_modules
+
+# build output (CI rebuilds from source via .github/workflows/deploy.yml)
+dist
+dist-ssr
+
+# local / editor
+*.local
+.vite
+.DS_Store
+*.log

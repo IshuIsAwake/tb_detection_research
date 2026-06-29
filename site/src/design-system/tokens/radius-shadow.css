@@ -1,0 +1,32 @@
+/* ============================================================
+   RADIUS, SHADOW & MOTION
+   Soft corners, low warm shadows, calm easing. Nothing harsh.
+   ============================================================ */
+
+:root {
+  /* --- Corner radius --- */
+  --r-sm:   4px;
+  --r:      8px;    /* default — cards, inputs, buttons */
+  --r-lg:   14px;   /* large panels, hero cards */
+  --r-pill: 999px;  /* tags, pills, avatars */
+
+  /* --- Shadows (warm-tinted, low) --- */
+  --shadow-sm: 0 1px 2px rgba(30, 32, 34, 0.05);
+  --shadow:    0 2px 8px -2px rgba(30, 32, 34, 0.09),
+               0 1px 2px rgba(30, 32, 34, 0.05);
+  --shadow-lg: 0 14px 36px -10px rgba(30, 32, 34, 0.16),
+               0 3px 8px -3px rgba(30, 32, 34, 0.08);
+
+  /* --- Borders --- */
+  --border-w: 1px; /* @kind other */
+  --border:   var(--border-w) solid var(--line); /* @kind other */
+  --border-2: var(--border-w) solid var(--line-2); /* @kind other */
+
+  /* --- Motion --- */
+  --ease:        cubic-bezier(0.32, 0.72, 0, 1); /* @kind other */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */
+  --dur-fast:    120ms; /* @kind other */
+  --dur:         200ms; /* @kind other */
+  --dur-slow:    320ms; /* @kind other */
+  --transition:  var(--dur) var(--ease); /* @kind other */
+}

@@ -305,11 +305,20 @@ def save_confusion_png(cm: dict, path) -> None:
 
 # ── detection AP via Ultralytics val ──────────────────────────────────────────
 
-def detection_ap(model, imgsz, split) -> dict:
-    """Build a temp val tree on the 120 test positives and run model.val()."""
-    from yolo_common import splits as SP
+def detection_ap(model, imgsz, split, root=None) -> dict:
+    """Build a temp val tree on the test positives and run model.val().
 
-    root = S.GEN_ROOT / "_eval_testpos"
+    `root` lets a caller (e.g. exp5 k-fold) point at a fold-local tree; default
+    is the shared `_eval_testpos`. The val dirs are cleared first so a varying
+    set of test stems (different folds) can't leave stale links behind."""
+    from yolo_common import splits as SP
+    import shutil
+
+    root = root or (S.GEN_ROOT / "_eval_testpos")
+    for sub in ("images/val", "labels/val"):
+        d = root / sub
+        if d.exists():
+            shutil.rmtree(d)
     for stem in split["test_positive_ids"]:
         SP._link(SP.tb_image_path(stem), root / "images" / "val" / f"{stem}.png")
         SP._link(SP.label_path(stem), root / "labels" / "val" / f"{stem}.txt")
@@ -341,12 +350,15 @@ def detection_ap(model, imgsz, split) -> dict:
 
 # ── top-level ─────────────────────────────────────────────────────────────────
 
-def evaluate(model, imgsz, split, items) -> dict:
-    """Return the locked `metrics` sub-dict (detection/localization/screening/by_size)."""
+def evaluate(model, imgsz, split, items, eval_root=None) -> dict:
+    """Return the locked `metrics` sub-dict (detection/localization/screening/by_size).
+
+    `eval_root` is forwarded to detection_ap so a k-fold caller can isolate the
+    temp val tree per fold; None keeps the shared default."""
     per_image = collect(model, items, imgsz)
     confs = list(S.CONF_THRESHOLDS) + [S.RECALL_CEILING_CONF]
     return {
-        "detection": detection_ap(model, imgsz, split),
+        "detection": detection_ap(model, imgsz, split, root=eval_root),
         "localization": localization(per_image),
         "screening": screening(per_image, confs),
         "by_size": by_size(per_image),

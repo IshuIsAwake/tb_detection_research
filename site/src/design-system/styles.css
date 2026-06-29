@@ -1,0 +1,44 @@
+/* TB Detection Research — Design System global entry point */
+
+@import url("tokens/fonts.css");
+@import url("tokens/colors.css");
+@import url("tokens/typography.css");
+@import url("tokens/spacing.css");
+@import url("tokens/radius-shadow.css");
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  transition: background var(--transition), color var(--transition);
+}
+
+::selection { background: var(--primary-tint-2); }
+
+a { color: inherit; }
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: var(--r);
+  font-size: var(--text-sm);
+  font-weight: var(--w-medium);
+  font-family: var(--font-sans);
+  color: var(--ink-2);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  text-decoration: none;
+}
+
+.nav-link:hover { background: var(--paper-2); }
+
+.nav-link.active,
+.nav-link.active:hover {
+  background: var(--primary-tint);
+  color: var(--primary);
+}

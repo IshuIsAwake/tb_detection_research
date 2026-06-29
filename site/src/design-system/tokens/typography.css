@@ -1,0 +1,50 @@
+/* ============================================================
+   TYPOGRAPHY
+   Serif for reading & headings, Sans for UI, Mono for data.
+   Base size 17px, generous line-height for comfortable reading.
+   ============================================================ */
+
+:root {
+  /* --- Families --- */
+  --font-serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --font-sans:  "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono:  "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
+
+  /* --- Type scale (rem, 1rem = 17px base) --- */
+  --text-display: 2.6rem;    /* page hero titles */
+  --text-h1:      2.0rem;    /* page titles */
+  --text-h2:      1.5rem;    /* section titles */
+  --text-h3:      1.2rem;    /* sub-section / card titles */
+  --text-lead:    1.18rem;   /* lead paragraph / page descriptions */
+  --text-body:    1rem;      /* default body (~17px) */
+  --text-sm:      0.88rem;   /* secondary text, table cells */
+  --text-xs:      0.78rem;   /* captions, footnotes */
+  --text-label:   0.7rem;    /* eyebrow / uppercase micro-labels */
+
+  /* --- Weights --- */
+  --w-regular: 400; /* @kind font */
+  --w-medium:  500; /* @kind font */
+  --w-semibold:600; /* @kind font */
+  --w-bold:    700; /* @kind font */
+
+  /* --- Line heights --- */
+  --lh-tight:   1.18; /* @kind font */
+  --lh-snug:    1.35; /* @kind font */
+  --lh-body:    1.7; /* @kind font */
+  --lh-relaxed: 1.85; /* @kind font */
+
+  /* --- Letter spacing --- */
+  --ls-tight:   -0.02em; /* @kind font */
+  --ls-normal:  0; /* @kind font */
+  --ls-label:   0.08em; /* @kind font */
+}
+
+/* Base element defaults consumers inherit */
+html { font-size: 17px; }
+body {
+  font-family: var(--font-sans);
+  color: var(--ink);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}

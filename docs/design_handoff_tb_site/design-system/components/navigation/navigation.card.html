@@ -1,0 +1,39 @@
+<!-- @dsCard group="Components" viewport="700x200" name="Navigation — Tabs" subtitle="Segmented control for threshold / view switches" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; background: var(--paper); font-family: var(--font-sans); padding: 26px; color: var(--ink); }
+  .lbl { font-size: var(--text-label); text-transform: uppercase; letter-spacing: var(--ls-label); color: var(--ink-3); font-weight: var(--w-semibold); margin: 0 0 12px; }
+  .panel { margin-top: 14px; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink-2); }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { Tabs } = window.TBDetectionResearchDesignSystem_ccf532;
+    function Demo() {
+      const [v, setV] = React.useState("0.25");
+      const data = { "0.25": "recall 0.71 · precision 0.58", "0.5": "recall 0.63 · precision 0.74", "0.7": "recall 0.49 · precision 0.86" };
+      return (
+        <>
+          <p className="lbl">Confidence threshold</p>
+          <Tabs
+            items={[{ id: "0.25", label: "conf 0.25" }, { id: "0.5", label: "conf 0.5" }, { id: "0.7", label: "conf 0.7" }]}
+            value={v}
+            onChange={setV}
+          />
+          <div className="panel">@ {v} → {data[v]}</div>
+        </>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>

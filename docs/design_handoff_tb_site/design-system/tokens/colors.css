@@ -1,0 +1,81 @@
+/* ============================================================
+   COLORS — "Clinical Paper"
+   Warm paper neutrals + ink text + a calm clinical petrol-teal.
+   Semantic result colors (good / warn / bad) read directly off
+   the experiment metrics this project tracks.
+   ============================================================ */
+
+:root {
+  /* --- Neutrals: warm paper & ink --- */
+  --paper:            #FBFAF6;  /* app background — warm off-white */
+  --paper-2:          #F4F2EC;  /* sunken panels, table headers, code wells */
+  --surface:          #FFFFFF;  /* cards, raised surfaces */
+  --surface-2:        #FCFBF8;  /* subtly tinted card / striped row */
+
+  --ink:              #1E2022;  /* primary text — warm near-black */
+  --ink-2:            #4A4E52;  /* secondary text */
+  --ink-3:            #797E83;  /* tertiary / muted labels */
+  --ink-4:            #A7ABAE;  /* faint / disabled */
+
+  --line:             #E7E2D8;  /* default hairline border (warm) */
+  --line-2:           #D6CFC1;  /* stronger border / dividers */
+  --line-3:           #BFB8A8;  /* heavy / focus rings on paper */
+
+  /* --- Primary: clinical petrol-teal --- */
+  --primary:          #1C6B6E;  /* brand accent, links, primary buttons */
+  --primary-strong:   #135053;  /* hover / pressed */
+  --primary-tint:     #E2EEED;  /* soft fill behind primary content */
+  --primary-tint-2:   #C9E0DE;  /* slightly stronger tint */
+  --on-primary:       #FBFAF6;  /* text on primary fill */
+
+  /* --- Semantic: results & status --- */
+  --good:             #2E7D5B;  /* strong metric / improvement */
+  --good-tint:        #E2F0E8;
+  --warn:             #B5742A;  /* caution / capped / landmine */
+  --warn-tint:        #F4EADA;
+  --bad:              #B0473C;  /* regression / failure / ruled-out */
+  --bad-tint:         #F3E2DF;
+  --info:             #2C6285;  /* neutral note / informational */
+  --info-tint:        #E2EBF1;
+
+  /* --- Focus --- */
+  --focus-ring:       rgba(28, 107, 110, 0.35);
+}
+
+/* ============================================================
+   DARK — "Clinical Paper, after hours"
+   Warm-toned dark neutrals; the petrol-teal lifted for contrast.
+   Toggled by setting data-theme="dark" on <html>.
+   ============================================================ */
+[data-theme="dark"] {
+  --paper:            #15171A;
+  --paper-2:          #1D2024;
+  --surface:          #1E2226;
+  --surface-2:        #24282D;
+
+  --ink:              #ECEAE3;
+  --ink-2:            #BFBDB4;
+  --ink-3:            #8A8F94;
+  --ink-4:            #5C6266;
+
+  --line:             #2E333A;
+  --line-2:           #3A4047;
+  --line-3:           #4B525A;
+
+  --primary:          #4FBAB6;
+  --primary-strong:   #6FCDC9;
+  --primary-tint:     #15302F;
+  --primary-tint-2:   #214E4D;
+  --on-primary:       #0C1413;
+
+  --good:             #5FB98C;
+  --good-tint:        #15291F;
+  --warn:             #D49B5A;
+  --warn-tint:        #2A2316;
+  --bad:              #D9756A;
+  --bad-tint:         #2B1A18;
+  --info:             #6BA8CE;
+  --info-tint:        #15242E;
+
+  --focus-ring:       rgba(79, 186, 182, 0.4);
+}

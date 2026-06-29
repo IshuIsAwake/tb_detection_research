@@ -11,6 +11,7 @@ repo — download it and put it at `data/TBX11K/`.
 - `yolo_common/` — shared code (data prep, splits, training, metrics).
 - `yolo_experiments/` — one script per experiment, results saved per run.
 - `RESULTS.md` — what each run found, in order.
+- `ideas.md` — parked ideas / future directions.
 - `docs/` — the project page.
 
 ## Run an experiment
@@ -29,13 +30,5 @@ Detection baseline only so far (YOLOv8n). See `RESULTS.md` for current findings.
 
 ## Future ideas
 
-Noted but not built — likely candidates for a later custom architecture, not the
-current YOLO baseline:
-
-- **Anatomy-preserving mosaic.** A quadrant-constrained CutMix that only places a
-  region where it anatomically belongs (a top-left lung stays top-left), so the
-  composite is still a plausible chest. Plain YOLO mosaic just juxtaposes four
-  partial chests with no anatomy constraint.
-- **Lesion-size-conditional blur.** Blur only images whose lesions are large
-  enough to survive it — acquisition-sharpness robustness without erasing the
-  small lesions we're trying to find.
+Parked ideas and future directions live in [`ideas.md`](ideas.md) — augmentation,
+preprocessing, and pipeline-topology (how to stage detectors and classifiers).

@@ -1,0 +1,45 @@
+<!-- @dsCard group="Components" viewport="700x460" name="Content — Callout · PaperRef" subtitle="Honesty-motif asides and citation rows" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; background: var(--paper); font-family: var(--font-sans); padding: 26px; color: var(--ink); }
+  .lbl { font-size: var(--text-label); text-transform: uppercase; letter-spacing: var(--ls-label); color: var(--ink-3); font-weight: var(--w-semibold); margin: 0 0 12px; }
+  .stack { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { Callout, PaperRef } = window.TBDetectionResearchDesignSystem_ccf532;
+    function Demo() {
+      return (
+        <>
+          <p className="lbl">Callout</p>
+          <div className="stack">
+            <Callout kind="decision">Specificity belongs in the classifier; keep the detector positives-only / sensitive.</Callout>
+            <Callout kind="landmine">COCO JSON is the box coord source, <strong>not</strong> the XML — XML uses original clinical resolution.</Callout>
+            <Callout kind="retraction"><s>512@16 clearly beats 1024@8</s> — anchored on one lucky seed; multi-seed they're tied.</Callout>
+          </div>
+          <p className="lbl">PaperRef</p>
+          <PaperRef
+            important
+            title="ResNet — Deep Residual Learning"
+            meta="He et al. · CVPR 2016"
+            link="https://arxiv.org/abs/1512.03385"
+            note="The skip-connection paper. Backbone candidate for both stages."
+            read={true}
+          />
+        </>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>

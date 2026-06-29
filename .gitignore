@@ -7,6 +7,13 @@ yolo_datasets/
 # Per-run experiment outputs (weights, curves, metrics)
 yolo_experiments/results/
 
+# Remote-training artifacts + upload bundles (large, rebuildable; numbers live in
+# RESULTS.md + the site). The kaggle/*.py scripts + README stay tracked.
+colab/
+upload/
+kaggle/dataset/
+kaggle/dataset.zip
+
 # Pretrained weights — auto-downloaded by Ultralytics
 *.pt
 

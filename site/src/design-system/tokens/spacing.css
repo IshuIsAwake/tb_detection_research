@@ -1,0 +1,21 @@
+/* ============================================================
+   SPACING — 4px base scale
+   ============================================================ */
+
+:root {
+  --sp-0:  0;            /* @kind spacing */
+  --sp-1:  0.25rem;  /*  4px */
+  --sp-2:  0.5rem;   /*  8px */
+  --sp-3:  0.75rem;  /* 12px */
+  --sp-4:  1rem;     /* 16px */
+  --sp-5:  1.5rem;   /* 24px */
+  --sp-6:  2rem;     /* 32px */
+  --sp-7:  3rem;     /* 48px */
+  --sp-8:  4rem;     /* 64px */
+  --sp-9:  6rem;     /* 96px */
+
+  /* Layout */
+  --content-max: 1180px;  /* @kind spacing */
+  --prose-max:   720px;   /* @kind spacing */
+  --gutter:      2rem;    /* @kind spacing */
+}

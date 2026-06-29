@@ -1,0 +1,63 @@
+<!-- @dsCard group="Components" viewport="700x430" name="Core — Button · Badge · Tag" subtitle="Actions, status pills, and config chips" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; background: var(--paper); font-family: var(--font-sans); padding: 26px; color: var(--ink); }
+  .group { margin-bottom: 22px; }
+  .lbl { font-size: var(--text-label); text-transform: uppercase; letter-spacing: var(--ls-label); color: var(--ink-3); font-weight: var(--w-semibold); margin-bottom: 12px; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { Button, Badge, Tag } = window.TBDetectionResearchDesignSystem_ccf532;
+    function Demo() {
+      return (
+        <>
+          <div className="group">
+            <div className="lbl">Buttons</div>
+            <div className="row">
+              <Button variant="primary">View ablation</Button>
+              <Button variant="secondary">Dataset research</Button>
+              <Button variant="ghost">References</Button>
+              <Button variant="danger">Discard run</Button>
+              <Button variant="primary" size="sm">Small</Button>
+              <Button variant="primary" disabled>Disabled</Button>
+            </div>
+          </div>
+          <div className="group">
+            <div className="lbl">Badges — status &amp; results</div>
+            <div className="row">
+              <Badge tone="good">Finalist</Badge>
+              <Badge tone="bad">Ruled out</Badge>
+              <Badge tone="warn">Capped ~60%</Badge>
+              <Badge tone="info">Note</Badge>
+              <Badge tone="primary" variant="solid">Latest run</Badge>
+              <Badge tone="neutral">Pretraining</Badge>
+            </div>
+          </div>
+          <div className="group">
+            <div className="lbl">Tags — configs &amp; identifiers</div>
+            <div className="row">
+              <Tag>512 @ batch 16</Tag>
+              <Tag tone="primary">mosaic</Tag>
+              <Tag>YOLOv8n</Tag>
+              <Tag tone="muted">CC BY 4.0</Tag>
+              <Tag>mAP50 0.70</Tag>
+            </div>
+          </div>
+        </>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>
