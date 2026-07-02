@@ -1,5 +1,7 @@
 # TB detection on chest X-rays
 
+Refer to the website (github page).
+
 Trying to improve tuberculosis detection. Right now I'm just seeing what works
 and what doesn't.
 
