@@ -26,7 +26,10 @@ script docstrings.
 
 ## Status
 
-Detection baseline only so far (YOLOv8n). See `RESULTS.md` for current findings.
+YOLO detection baseline is **locked**: VinDr-init + mosaic_mixup + full fine-tune
+@ 512 = Active mAP50 0.745 on the sealed test. Model size, resolution, and
+inference tricks are all exhausted — the wall is data (799 TB images), not the
+model. Next: the two-stage **classifier → detector** pipeline. See `RESULTS.md`.
 
 ## Future ideas
 

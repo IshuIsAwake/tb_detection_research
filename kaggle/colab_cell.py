@@ -16,6 +16,16 @@
 # ── per-account setup ─────────────────────────────────────────────────────────
 # Account A → SEED = 0   |   Account B → SEED = 1   |   Account C → SEED = 2
 SEED = 0
+
+# ── WHAT TO TRAIN (change these for a new batch; everything else stays) ─────────
+# MODEL: a bare Ultralytics name (auto-downloaded, needs internet) OR a Drive path.
+#   yolov8s capacity probe  → "yolov8s.pt"  (COCO init; the VinDr backbone is
+#                              yolov8n and CANNOT init an s model — arch mismatch).
+#   VinDr-1024 batch        → f"{DRIVE}/vindr_pretrain_1024.pt"
+MODEL = "yolov8s.pt"
+INIT  = "yolov8s"            # short tag baked into run names (e.g. yolov8s | vindr1024)
+IMGSZ = 1024
+AUGS  = ["mosaic"]          # mosaic won at 1024; use ["mosaic", "mosaic_mixup"] for both
 # ──────────────────────────────────────────────────────────────────────────────
 
 import os, subprocess, sys
@@ -27,23 +37,26 @@ from google.colab import drive
 drive.mount("/content/drive")
 
 # 2. paths — point DRIVE at the folder where you uploaded the bundle (see README).
-#    Bundle must contain: splits.json, tb/, labels_all/, vindr_pretrain_1024.pt,
-#    tbx_train.py
+#    Bundle must contain: splits.json, tb/, labels_all/, tbx_train.py (+ any Drive
+#    init weights you reference in MODEL above).
 DRIVE    = "/content/drive/MyDrive/tb"             # <-- adjust if you used another folder
 BUNDLE   = DRIVE                                   # splits.json + tb/ + labels_all/ live here
-VINDR    = f"{DRIVE}/vindr_pretrain_1024.pt"       # the 1024 VinDr backbone (init)
 TRAIN_PY = f"{DRIVE}/tbx_train.py"                 # uploaded copy of kaggle/tbx_train.py
 RUNS     = f"{DRIVE}/colab_runs"                    # checkpoints/best.pt — survive disconnects
 Path(RUNS).mkdir(parents=True, exist_ok=True)
 
-for p in (VINDR, TRAIN_PY, f"{BUNDLE}/splits.json"):
+# A Drive-path MODEL must exist; a bare "yolov8*.pt" name is downloaded, so skip it.
+checks = [TRAIN_PY, f"{BUNDLE}/splits.json"]
+if "/" in MODEL:
+    checks.append(MODEL)
+for p in checks:
     assert Path(p).exists(), f"missing on Drive: {p}"
 
-# 3. this account's two jobs (both augs, its seed). VinDr-1024 init for both.
-JOBS = [("mosaic", SEED), ("mosaic_mixup", SEED)]
+# 3. this account's jobs (one per aug, its seed).
+JOBS = [(aug, SEED) for aug in AUGS]
 
 for aug, seed in JOBS:
-    run_name = f"tbx_vindr1024_{aug}_1024_b16_s{seed}"
+    run_name = f"tbx_{INIT}_{aug}_{IMGSZ}_b16_s{seed}"
     run_dir  = Path(RUNS) / run_name
     if (run_dir / "DONE").exists():
         print(f"SKIP {run_name} — already DONE")
@@ -51,7 +64,7 @@ for aug, seed in JOBS:
     resume = (run_dir / "weights" / "last.pt").exists()
     env = dict(
         os.environ,
-        MODEL=VINDR, IMGSZ="1024", BATCH="16", AUG=aug, SEED=str(seed),
+        MODEL=MODEL, IMGSZ=str(IMGSZ), BATCH="16", AUG=aug, SEED=str(seed),
         EPOCHS="200", PATIENCE="100", DEVICE="0", WORKERS="2",
         INPUT_ROOT=BUNDLE,
         WORK_ROOT="/content/work",        # local/fast: materialised symlink tree
@@ -59,11 +72,11 @@ for aug, seed in JOBS:
         RUN_NAME=run_name,
         RESUME="1" if resume else "0",
     )
-    print(f"\n>>> {run_name}  (resume={resume})")
+    print(f"\n>>> {run_name}  (model={MODEL}, resume={resume})")
     subprocess.run([sys.executable, TRAIN_PY], env=env, check=True)
 
 print("\nAll jobs for this account finished. Download from Drive:")
-print(f"  {RUNS}/tbx_vindr1024_*_1024_b16_s{SEED}/weights/best.pt")
+print(f"  {RUNS}/tbx_{INIT}_*_{IMGSZ}_b16_s{SEED}/weights/best.pt")
 print("Then eval LOCALLY (do NOT eval on Colab):")
-print("  python yolo_experiments/eval_weights.py --weights <best.pt> --imgsz 1024 "
+print(f"  python yolo_experiments/eval_weights.py --weights <best.pt> --imgsz {IMGSZ} "
       "--name <run_name>")

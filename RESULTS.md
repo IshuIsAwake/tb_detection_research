@@ -124,26 +124,45 @@ exp1-6, so directly comparable. Active mAP50:
   grabs the early peak, so the final number holds. This motivates exp8.
 - Confusion matrices clean (max Active→Obsolete = 11; no fz8-style artifact).
 
-## exp8 — model capacity n → s → m (IN PROGRESS)
+## exp8 — model capacity (yolov8s) + inference tricks
 
-exp7 closed 1024 *at yolov8n only*. Open question: is the wall **capacity** (then
-yolov8s/m would exploit 1024) or the **799-image data ceiling** (then a bigger
-model just overfits harder — which the exp7 curves hint at)?
+exp7 closed 1024 *at yolov8n*; this asks whether the wall is **capacity** (a
+bigger model exploits resolution) or the **799-image data ceiling** (a bigger
+model just overfits). Plus the free inference tricks (TTA, seed-ensemble).
 
-- Step 1 (running locally): COCO-init yolov8s @ 512 mixup ×3, judged against
-  COCO-**n** mixup@512 (0.726) to isolate capacity. Batch 16 fits 6 GB (smoke-
-  checked).
-- Step 2: yolov8s @ 1024 on Colab (mosaic + mixup ×3). A VinDr-s backbone is
-  gated on whether yolov8s shows any gain first.
-- Judge: Active mAP50 on the sealed test, ±0.025 bar. Champion to beat = 0.745.
+- **yolov8s @ 512 mosaic_mixup** (COCO-init, 3 seeds): 0.691 / 0.691 / 0.704 →
+  **0.695 ± 0.008**. *Below* COCO-n mixup@512 (0.726). Capacity hurts at 512.
+- **yolov8s @ 1024 mosaic** (COCO-init, 3 seeds, Kaggle 2×T4): 0.714 / 0.739 /
+  0.648 → **0.700 ± 0.047**. *Below* COCO-n mosaic@1024 (0.721) and far noisier.
+  Bigger model + bigger images is no better — slightly worse, higher variance.
+  (s@1024@16 OOMs a single T4; needs 2×T4 — even fitting it is a fight.)
+- **TTA** on the champion (3 seeds, inference-only, no retrain): 0.733 / 0.724 /
+  0.768 → **0.742 ± 0.023** vs no-TTA 0.745. Dead tie — TTA trades precision for
+  recall, conf-integrated mAP50 nets flat.
+- **Seed-ensemble: not run.** The 3 champion seeds share the frozen split, so
+  their errors are correlated → WBF gains little (and TTA, the same idea, already
+  netted zero). A *decorrelated* CV-fold ensemble has no clean test left — exp5
+  trained every image in some fold. Not worth it.
+
+## Verdict — YOLO detection baseline LOCKED
+
+Four independent levers all closed within/under the ±0.025 bar: resolution
+(exp7), capacity at 512 and 1024 (exp8), TTA. **The bottleneck is data (799
+images), not the model, the resolution, or inference.** Box quality was never the
+problem (loc IoU ~0.74 throughout) — recall is, and recall is data-limited.
+
+**Final YOLO detector: VinDr-init + mosaic_mixup + full fine-tune @ 512 @ batch
+16 = Active mAP50 0.745 ± 0.028** on the sealed test. This is the detection
+baseline the rest of the project builds on.
 
 ---
 
-## Next / later
+## Next — the two-stage pipeline (the original intent)
 
-- If capacity helps: pretrain a yolov8s VinDr backbone, re-run the best cell.
-- If not: TTA + seed-ensembling as final polish.
-- Infra unchanged: train remote, **eval local** — `kaggle/tbx_train.py` (+ the
-  Colab cell) emit best.pt, `yolo_experiments/eval_weights.py` scores it on the
-  sealed test. See `ideas.md` for parked directions (pipeline topology, lung
-  segmentation, custom lesion copy-paste, texture enhancement).
+The detector is done, and it is deliberately **positives-only / sensitive** —
+specificity was always the **classifier's** job (exp2). Next is the real
+architecture: **image-level classifier → TB detector**. Stage 1 screens healthy /
+sick / TB and forwards only likely-TB images; stage 2 is this locked detector.
+See `ideas.md` for the pipeline-topology design space (clf→det, det→clf, 3-stage)
+and the data-centric ideas (pseudo-labeling, lung-seg masking, lesion copy-paste)
+that could still lift either stage past the 799-image ceiling.

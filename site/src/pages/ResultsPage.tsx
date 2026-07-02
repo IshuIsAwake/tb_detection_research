@@ -167,7 +167,7 @@ function YoloExperiments() {
 }
 
 function LatestRun() {
-  const latest = RUNS[0];
+  const latest = RUNS.find((r) => r.best) ?? RUNS[0];
   const m = buildRunMetrics(latest);
   return (
     <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--r-lg)", padding: "var(--sp-6)", boxShadow: "var(--shadow-sm)" }}>
@@ -207,7 +207,7 @@ export function ResultsPage() {
       </Callout>
 
       <section style={{ marginBottom: "var(--sp-8)" }}>
-        <SectionTitle>Latest run</SectionTitle>
+        <SectionTitle>Champion run</SectionTitle>
         <LatestRun />
       </section>
 

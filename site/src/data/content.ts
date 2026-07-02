@@ -168,28 +168,30 @@ export const EXPERIMENTS: Experiment[] = [
   },
   {
     id: "exp8",
-    date: "in progress",
-    title: "Model capacity — yolov8 n → s → m",
-    outcome: { tone: "info", label: "Running" },
+    date: "30 Jun 2026",
+    title: "Model capacity (yolov8s) + inference tricks",
+    outcome: { tone: "neutral", label: "Baseline locked" },
     headline: [
-      { label: "Question", value: "does capacity unlock 1024?", tone: "default" },
-      { label: "Baseline", value: "COCO-n mixup 0.726", tone: "default" },
+      { label: "yolov8s best", value: "0.700 ± 0.047", tone: "warn" },
+      { label: "vs champion", value: "no gain", tone: "default" },
     ],
     stats: [
-      { label: "yolov8s @512 mixup", value: "running (×3)", tone: "info" },
-      { label: "yolov8s @1024",      value: "queued (Colab)", tone: "info" },
-      { label: "Significance bar",   value: "±0.025",        tone: "default" },
+      { label: "yolov8s @512 mixup",   value: "0.695 ± 0.008", tone: "warn" },
+      { label: "yolov8s @1024 mosaic", value: "0.700 ± 0.047", tone: "warn" },
+      { label: "TTA on champion",      value: "0.742 ± 0.023", tone: "default" },
+      { label: "Champion (locked)",    value: "0.745",         tone: "good" },
     ],
     findings: [
-      { kind: "note", text: "exp7 showed 1024 doesn't pay off — but every cell was yolov8n. The open question: is the binding constraint <strong>model capacity</strong> (then yolov8s/m would exploit 1024), or the <strong>799-image data ceiling</strong> (then a bigger model just overfits harder)?" },
-      { kind: "note", text: "Step 1 (running locally): COCO-init yolov8s @ 512 mixup, 3 seeds, compared against COCO-<strong>n</strong> mixup @512 (0.726) to isolate capacity. Step 2: yolov8s @ 1024 on Colab. A VinDr-s backbone is gated on whether yolov8s shows any gain first." },
+      { kind: "decision", text: "<strong>YOLO detection baseline LOCKED at 0.745</strong> (VinDr-init + mixup + full fine-tune @ 512). Four levers all closed within the ±0.025 bar — resolution (exp7), capacity at 512 and 1024, and TTA. The bottleneck is <strong>data (799 images)</strong>, not the model." },
+      { kind: "note", text: "yolov8s is <strong>worse, not better</strong>: 0.695 @512 (vs COCO-n 0.726) and 0.700 @1024 (vs COCO-n 0.721), with far higher variance. A bigger model just overfits 799 images harder. (s@1024@16 won't even fit a single T4 — needs 2×T4.)" },
+      { kind: "note", text: "TTA is a wash (0.742 vs 0.745) — it trades precision for recall, so conf-integrated mAP50 nets flat. Seed-ensemble skipped: the 3 champion seeds share the frozen split (correlated errors), and a decorrelated CV-fold ensemble has no clean test left." },
     ],
   },
 ];
 
 export const NEXT_UP = [
-  { id: "exp8", text: "Capacity probe (running) — yolov8s at 512 then 1024. Does more model capacity make 1024 pay off, or are we at the 799-image data ceiling?" },
-  { id: "later", text: "If capacity helps: pretrain a yolov8s VinDr backbone and re-run the best cell. If not: test-time augmentation (TTA) + seed-ensembling as final polish." },
+  { id: "next", text: "<strong>The two-stage pipeline</strong> (the original intent) — image-level classifier → TB detector. Stage 1 screens healthy / sick / TB and forwards only likely-TB images; stage 2 is this locked detector, kept positives-only and sensitive (specificity is the classifier's job, per exp2)." },
+  { id: "data", text: "Data-centric levers to lift the 799-image ceiling — the real wall: pseudo-labeling the unlabeled TBX images, lung-segmentation masking, lesion copy-paste. See the parked ideas." },
 ];
 
 export interface Dataset {
@@ -471,6 +473,38 @@ export interface Run {
 }
 
 export const RUNS: Run[] = [
+  // ── exp8: capacity (yolov8s) — all below the n baseline (data ceiling) ──
+  { name: "tbx_yolov8s_mosaic_1024_b16_s1", group: "exp8", aug: "mosaic", imgsz: 1024, batch: 16, seed: 1, date: "30 Jun 2026",
+    epochs: 200, patience: 100,
+    map50: "0.466", precision: "0.403", recall: "0.580", tbCaught: "116/121", healthyFA: "6.7%", sickFA: "17.5%", trainTime: "—",
+    desc: "yolov8s @ 1024 mosaic (COCO-init, Kaggle 2×T4). Active mAP50 = 0.739 — best s@1024 seed, still below COCO-n mosaic @1024 (0.721 band) and the champion (0.745). Bigger model + bigger images = no gain.",
+    metrics: { active: "0.739", obsolete: "0.193", iou: "0.736", map5095: "0.347", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.486" }, large: { n: 105, v: "0.686" } } } },
+  { name: "tbx_yolov8s_mosaic_1024_b16_s0", group: "exp8", aug: "mosaic", imgsz: 1024, batch: 16, seed: 0, date: "30 Jun 2026",
+    epochs: 200, patience: 100,
+    map50: "0.477", precision: "0.480", recall: "0.582", tbCaught: "118/121", healthyFA: "15.0%", sickFA: "18.3%", trainTime: "—",
+    desc: "yolov8s @ 1024 mosaic, seed 0. Active mAP50 = 0.714.",
+    metrics: { active: "0.714", obsolete: "0.241", iou: "0.750", map5095: "0.350", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.444" }, large: { n: 105, v: "0.800" } } } },
+  { name: "tbx_yolov8s_mosaic_1024_b16_s2", group: "exp8", aug: "mosaic", imgsz: 1024, batch: 16, seed: 2, date: "30 Jun 2026",
+    epochs: 200, patience: 100,
+    map50: "0.429", precision: "0.398", recall: "0.450", tbCaught: "116/121", healthyFA: "5.8%", sickFA: "17.5%", trainTime: "—",
+    desc: "yolov8s @ 1024 mosaic, seed 2. Active mAP50 = 0.648 — low seed; s@1024 is noisy (band 0.700 ± 0.047). Capacity adds variance, not accuracy.",
+    metrics: { active: "0.648", obsolete: "0.210", iou: "0.737", map5095: "0.306", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.431" }, large: { n: 105, v: "0.714" } } } },
+  { name: "tbx_yolov8s_mosaic_mixup_512_b16_s2", group: "exp8", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 2, date: "30 Jun 2026",
+    epochs: 200, patience: 100,
+    map50: "0.477", precision: "0.465", recall: "0.520", tbCaught: "113/121", healthyFA: "9.2%", sickFA: "20.0%", trainTime: "38m",
+    desc: "yolov8s @ 512 mixup (COCO-init, local). Active mAP50 = 0.704 — best s@512 seed, still below COCO-n mixup @512 (0.726). More capacity hurts slightly at 512.",
+    metrics: { active: "0.704", obsolete: "0.249", iou: "0.744", map5095: "0.361", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.417" }, large: { n: 105, v: "0.762" } } } },
+  { name: "tbx_yolov8s_mosaic_mixup_512_b16_s0", group: "exp8", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 0, date: "30 Jun 2026",
+    epochs: 200, patience: 100,
+    map50: "0.497", precision: "0.467", recall: "0.613", tbCaught: "118/121", healthyFA: "10.8%", sickFA: "37.5%", trainTime: "38m",
+    desc: "yolov8s @ 512 mixup, seed 0. Active mAP50 = 0.691.",
+    metrics: { active: "0.691", obsolete: "0.304", iou: "0.734", map5095: "0.359", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.458" }, large: { n: 105, v: "0.790" } } } },
+  { name: "tbx_yolov8s_mosaic_mixup_512_b16_s1", group: "exp8", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 1, date: "30 Jun 2026",
+    epochs: 200, patience: 100,
+    map50: "0.431", precision: "0.307", recall: "0.573", tbCaught: "115/121", healthyFA: "3.3%", sickFA: "35.0%", trainTime: "38m",
+    desc: "yolov8s @ 512 mixup, seed 1. Active mAP50 = 0.691. Tight s@512 band (0.695 ± 0.008).",
+    metrics: { active: "0.691", obsolete: "0.171", iou: "0.728", map5095: "0.337", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.458" }, large: { n: 105, v: "0.771" } } } },
+
   // ── exp6 champion (VinDr + mixup, full fine-tune) — the 0.745 ± 0.028 config ──
   { name: "exp6_vindr_mosaic_mixup_fznone_s2", group: "exp6", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 2, date: "29 Jun 2026",
     best: true,

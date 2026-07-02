@@ -55,6 +55,9 @@ def main() -> None:
     ap.add_argument("--meta", default=None,
                     help="optional JSON string of training config to record "
                          "(model, batch, aug, seed, epochs) for provenance")
+    ap.add_argument("--tta", action="store_true",
+                    help="test-time augmentation (inference-only; no retrain). "
+                         "Runs the same weights over flipped/scaled copies.")
     args = ap.parse_args()
 
     weights = Path(args.weights)
@@ -71,7 +74,9 @@ def main() -> None:
     t0 = time.time()
     yolo = train_eval.load_best(weights)
     items = splits.blackbox(split)
-    metric_block = metrics.evaluate(yolo, args.imgsz, split, items)
+    if args.tta:
+        print("  TTA ON (test-time augmentation; inference-only, weights unchanged)")
+    metric_block = metrics.evaluate(yolo, args.imgsz, split, items, augment=args.tta)
     eval_sec = round(time.time() - t0, 1)
 
     out_dir = S.RESULTS_ROOT / args.name
@@ -87,6 +92,7 @@ def main() -> None:
         "experiment": args.name,
         "config": {"weights": str(weights), "imgsz": args.imgsz,
                    "trained_on": "kaggle/colab (offloaded)", "amp": S.AMP,
+                   "tta": args.tta,
                    "conf_thresholds": S.CONF_THRESHOLDS, **meta},
         "dataset": {"splits_file": str(S.SPLITS_JSON), "split_seed": split["seed"],
                     "train_positives": split["counts"]["train_positives"],
