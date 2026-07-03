@@ -40,9 +40,15 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy3.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy1.outputs.page_url }}
     steps:
-      # GitHub Pages' deploy backend intermittently returns
-      # "Deployment failed, try again later" (notably during/after Pages
-      # incidents). Retry up to 3 times before failing the run.
+      # Re-provision the Pages site as an Actions source before deploying.
+      # A prior delete/reset can leave the site half-provisioned (API
+      # status: null), which makes deploy-pages fail with "Deployment
+      # failed, try again later". enablement:true initialises it.
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      # The deploy backend can also fail transiently; retry up to 3 times.
       - id: deploy1
         name: Deploy to Pages (attempt 1)
         continue-on-error: true
