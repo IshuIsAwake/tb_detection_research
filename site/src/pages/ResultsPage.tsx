@@ -73,9 +73,9 @@ function RunSettings({ run }: { run: Run }) {
   return (
     <div>
       <MiniHead>Training configuration</MiniHead>
-      <MetricGrid min="150px">
-        {rows.map((s, i) => <StatCard key={i} label={s.label} value={s.value} />)}
-      </MetricGrid>
+      <div className="stat-grid-5">
+        {rows.map((s, i) => <StatCard key={i} size="sm" label={s.label} value={s.value} />)}
+      </div>
     </div>
   );
 }
@@ -155,37 +155,47 @@ function YoloExperiments() {
         </svg>
       </button>
       {open && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: COLS, gap: "0.6rem", padding: "0.7rem 1.1rem", borderBottom: "1px solid var(--line-2)", fontSize: "var(--text-label)", textTransform: "uppercase", letterSpacing: "var(--ls-label)", color: "var(--ink-3)", fontWeight: "var(--w-semibold)" }}>
-            <span>Experiment</span><span>mAP50</span><span>Precision</span><span>Recall</span><span>TB caught @.25</span><span>FA @.25 (H/S)</span><span>Train time</span><span>Date</span><span></span>
+        // A 9-column run table can't reflow into a phone. It gets its own
+        // horizontal scroll container so the PAGE never scrolls sideways —
+        // same treatment as the wide tables elsewhere on the site.
+        <div style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: "880px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: COLS, gap: "0.6rem", padding: "0.7rem 1.1rem", borderBottom: "1px solid var(--line-2)", fontSize: "var(--text-label)", textTransform: "uppercase", letterSpacing: "var(--ls-label)", color: "var(--ink-3)", fontWeight: "var(--w-semibold)" }}>
+              <span>Experiment</span><span>mAP50</span><span>Precision</span><span>Recall</span><span>TB caught @.25</span><span>FA @.25 (H/S)</span><span>Train time</span><span>Date</span><span></span>
+            </div>
+            {RUNS.map((run) => <RunRow key={run.name} run={run} />)}
           </div>
-          {RUNS.map((run) => <RunRow key={run.name} run={run} />)}
         </div>
       )}
     </div>
   );
 }
 
-function LatestRun() {
+function CurrentBest() {
   const latest = RUNS.find((r) => r.best) ?? RUNS[0];
   const m = buildRunMetrics(latest);
+  const [tab, setTab] = React.useState("metrics");
   return (
     <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--r-lg)", padding: "var(--sp-6)", boxShadow: "var(--shadow-sm)" }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
-        <h3 style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-h3)", fontWeight: "var(--w-semibold)", margin: 0, color: "var(--primary)" }}>{latest.name}</h3>
-        <Badge tone="primary" variant="solid">Champion config</Badge>
-        {latest.best && <Badge tone="good">best so far</Badge>}
-      </div>
+      {/* Run names are long unbreakable identifiers (exp6_vindr_mosaic_mixup_fznone_s2).
+          Without a break opportunity one of them widens the whole page on a phone. */}
+      <h3 style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-h3)", fontWeight: "var(--w-semibold)", margin: "0 0 0.5rem", color: "var(--primary)", overflowWrap: "anywhere" }}>{latest.name}</h3>
       <p style={{ color: "var(--ink-2)", fontSize: "var(--text-body)", lineHeight: "var(--lh-body)", margin: "0 0 1.25rem", maxWidth: "var(--prose-max)" }}>
-        exp6 champion · <Tag tone="primary">VinDr-init + mixup + full fine-tune</Tag>. Active mAP50 = 0.745 ± 0.028 across 3 seeds — beats the COCO+mosaic baseline (0.707) by +0.038, clearing the ±0.025 bar. The lever is mostly mixup; VinDr-init is a marginal bonus. exp7 (1024@16) ties this but adds no resolution gain at yolov8n; exp8 (capacity) is testing whether a bigger model changes that.
+        exp6 · <Tag tone="primary">VinDr-init + mixup + full fine-tune</Tag>. Active mAP50 = 0.745 ± 0.028 across 3 seeds — beats the COCO+mosaic baseline (0.707) by +0.038, clearing the ±0.025 bar. The lever is mostly mixup; VinDr-init is a marginal bonus. exp7 (1024) and exp8 (yolov8s, TTA) both failed to beat it, so this is the locked detection baseline — the wall is data (799 images), not the model.
       </p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "var(--sp-3)" }}>
-        <StatCard label="Active mAP50"     value={m.active}          tone="good" />
-        <StatCard label="Recall"           value={latest.recall}     tone="good" />
-        <StatCard label="TB caught @.25"   value={latest.tbCaught} />
-        <StatCard label="Healthy FA @.25"  value={latest.healthyFA}  tone={faTone(latest.healthyFA, true)} />
-        <StatCard label="Matched IoU"      value={m.iou}             tone="good" />
+      <div style={{ marginBottom: "var(--sp-5)" }}>
+        <Tabs items={[{ id: "metrics", label: "Metrics" }, { id: "settings", label: "Settings" }]} value={tab} onChange={setTab} />
       </div>
+      {tab === "metrics" && (
+        <div className="stat-grid-5">
+          <StatCard label="Active mAP50"    value={m.active}         tone="good" />
+          <StatCard label="Recall"          value={latest.recall}    tone="good" />
+          <StatCard label="TB caught @.25"  value={latest.tbCaught} />
+          <StatCard label="Healthy FA @.25" value={latest.healthyFA} tone={faTone(latest.healthyFA, true)} />
+          <StatCard label="Matched IoU"     value={m.iou}            tone="good" />
+        </div>
+      )}
+      {tab === "settings" && <RunSettings run={latest} />}
     </div>
   );
 }
@@ -207,8 +217,8 @@ export function ResultsPage() {
       </Callout>
 
       <section style={{ marginBottom: "var(--sp-8)" }}>
-        <SectionTitle>Champion run</SectionTitle>
-        <LatestRun />
+        <SectionTitle>Current best</SectionTitle>
+        <CurrentBest />
       </section>
 
       <section style={{ marginBottom: "var(--sp-8)" }}>
@@ -220,12 +230,15 @@ export function ResultsPage() {
               id={exp.id}
               title={exp.title}
               metrics={exp.headline.map((h) => ({ label: h.label, value: h.value, tone: h.tone }))}
-              badge={<Badge tone={exp.outcome.tone as "good" | "warn" | "bad" | "info" | "primary" | "neutral"}>{exp.outcome.label}</Badge>}
+              badge={
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--ink-3)", whiteSpace: "nowrap" }}>
+                  {exp.date}
+                </span>
+              }
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--ink-3)" }}>{exp.date}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "var(--sp-2)" }}>
-                  {exp.stats.map((s, i) => <StatCard key={i} label={s.label} value={s.value} tone={s.tone as "good" | "warn" | "bad" | undefined} />)}
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+                <div className="stat-grid-4">
+                  {exp.stats.map((s, i) => <StatCard key={i} size="sm" label={s.label} value={s.value} tone={s.tone as "good" | "warn" | "bad" | undefined} />)}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
                   {exp.findings.map((f, i) => (

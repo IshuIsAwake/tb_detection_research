@@ -5,6 +5,7 @@
 @import url("tokens/typography.css");
 @import url("tokens/spacing.css");
 @import url("tokens/radius-shadow.css");
+@import url("tokens/viz.css");
 
 body {
   margin: 0;
@@ -18,27 +19,389 @@ body {
 
 a { color: inherit; }
 
-.nav-link {
+/* ── Sidebar outline ────────────────────────────────────────────────────────
+   The page rows in the left outline. Sub-section rows are styled inline in
+   Sidebar.tsx because their active state is driven by scroll position. */
+
+.outline-link {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.45rem 0.8rem;
-  border-radius: var(--r);
-  font-size: var(--text-sm);
+  gap: 0.55rem;
+  padding: 0.42rem 0.55rem;
+  border-radius: var(--r-sm);
+  font-size: 0.86rem;
   font-weight: var(--w-medium);
   font-family: var(--font-sans);
   color: var(--ink-2);
   background: transparent;
-  border: none;
   cursor: pointer;
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  text-decoration: none;
+  line-height: 1.3;
+}
+
+.outline-link:hover {
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--ink);
+}
+
+.outline-link.active,
+.outline-link.active:hover {
+  background: var(--primary-tint);
+  color: var(--primary);
+  font-weight: var(--w-semibold);
+}
+
+.outline-num {
+  flex-shrink: 0;
+  width: 1.15rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: var(--w-semibold);
+  color: var(--ink-4);
+  text-align: center;
+}
+
+.outline-link.active .outline-num { color: var(--primary); }
+
+/* ── Icon button (sidebar header/footer) ─────────────────────────────────── */
+
+.icon-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.icon-btn:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--primary);
+}
+
+/* ── Focus visibility ───────────────────────────────────────────────────────
+   Keyboard users get a ring everywhere; `all: unset` above strips the UA one. */
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* ── Citations ──────────────────────────────────────────────────────────────
+   Superscripts restart at 1 per section; clicking one opens the section's
+   bibliography and flashes the entry. */
+
+.cite {
+  font-family: var(--font-mono);
+  font-size: 0.62em;
+  font-weight: var(--w-semibold);
+  line-height: 0;
+  white-space: nowrap;
+}
+
+/* `all: unset` also resets line-height, which the .cite parent sets to 0 to kill
+   the superscript's leading — leaving the button with a zero-height hit box that
+   paints but can't be clicked. inline-block + its own line-height gives it a real
+   target back without reintroducing leading on the paragraph. */
+.cite-link {
+  all: unset;
+  display: inline-block;
+  line-height: 1.1;
+  cursor: pointer;
+  color: var(--primary);
+  padding: 0 0.08em;
+  border-radius: 2px;
+}
+
+.cite-link::before { content: "["; }
+.cite-link::after  { content: "]"; }
+.cite-link:hover   { text-decoration: underline; }
+
+/* ── Bibliography (native <details>) ────────────────────────────────────── */
+
+.bib {
+  margin-top: var(--sp-7);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.bib-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 1.15rem;
+  cursor: pointer;
+  list-style: none;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.bib-summary::-webkit-details-marker { display: none; }
+.bib-summary:hover { background: var(--surface-2); }
+.bib[open] .bib-summary {
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.bib-chev {
+  display: flex;
+  color: var(--ink-3);
+  transition: transform var(--transition);
+}
+
+.bib[open] .bib-chev { transform: rotate(90deg); }
+
+.bib-list {
+  margin: 0;
+  padding: var(--sp-4) 1.15rem;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+  /* Long lists get their own scroll rather than pushing the pager off-screen. */
+  max-height: 26rem;
+  overflow-y: auto;
+}
+
+.bib-item {
+  display: flex;
+  gap: 0.7rem;
+  align-items: baseline;
+  scroll-margin: 1rem;
+  border-radius: var(--r-sm);
+  padding: 0.15rem 0.3rem;
+  margin: 0 -0.3rem;
+}
+
+.bib-n {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: var(--w-semibold);
+  color: var(--ink-4);
+  min-width: 1.6rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bib-a {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: var(--lh-snug);
   text-decoration: none;
 }
 
-.nav-link:hover { background: var(--paper-2); }
+.bib-a:hover { color: var(--primary); text-decoration: underline; }
 
-.nav-link.active,
-.nav-link.active:hover {
-  background: var(--primary-tint);
+@keyframes bib-flash {
+  0%   { background: var(--primary-tint-2); }
+  100% { background: transparent; }
+}
+
+.bib-flash { animation: bib-flash 1.4s var(--ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bib-flash { animation: none; background: var(--primary-tint); }
+}
+
+/* ── Contents rows (home) ──────────────────────────────────────────────── */
+
+.contents-row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  text-decoration: none;
+  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+}
+
+.contents-row:hover {
+  border-color: var(--primary-tint-2);
+  box-shadow: var(--shadow);
+}
+
+/* The label block takes the slack so the trailing arrow pins to the right edge
+   instead of trailing whatever the blurb's length happens to be. */
+.contents-row > span:nth-child(2) { flex: 1; }
+
+.contents-n {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: var(--w-semibold);
   color: var(--primary);
+  background: var(--primary-tint);
+  border: 1px solid var(--primary-tint-2);
+  border-radius: var(--r-sm);
+  padding: 0.2rem 0.45rem;
+}
+
+/* ── Figure & X-ray controls ───────────────────────────────────────────── */
+
+.fig-toggle,
+.xray-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--w-medium);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.fig-toggle:hover,
+.xray-toggle:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* The reveal control sits on the image, so it needs its own surface. */
+.xray-toggle {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  background: color-mix(in srgb, #14171a 72%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #f2f0ea;
+}
+
+.xray-toggle:hover {
+  background: color-mix(in srgb, #14171a 88%, transparent);
+  border-color: #fff;
+  color: #fff;
+}
+
+.xray-badge {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, #14171a 72%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #f2f0ea;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--w-medium);
+}
+
+/* ── Card grid ─────────────────────────────────────────────────────────── */
+
+.card-grid {
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
+}
+
+.card-grid-1 { --cols: 1; }
+.card-grid-2 { --cols: 2; }
+.card-grid-3 { --cols: 3; }
+.card-grid-4 { --cols: 4; }
+
+@media (max-width: 1000px) {
+  .card-grid-3, .card-grid-4 { --cols: 2; }
+}
+
+@media (max-width: 720px) {
+  .card-grid-2, .card-grid-3, .card-grid-4 { --cols: 1; }
+}
+
+/* ── Experiment row (research log) ───────────────────────────────────────────
+   The header is one flex line on desktop. On a phone that line is wider than
+   the viewport, so it wraps: title on its own row, metrics beneath it. */
+
+@media (max-width: 720px) {
+  .exp-row-head {
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem !important;
+  }
+  .exp-row-head > span:nth-child(2) { flex: 1 1 100%; order: -1; }
+  .exp-row-metrics { flex: 1 1 auto; gap: 1rem !important; }
+}
+
+/* ── Dataset row (research log) ──────────────────────────────────────────────
+   Seven rigid grid columns on desktop. Below the breakpoint the row reflows:
+   name + chevron on the first line, everything else wrapping beneath. */
+
+@media (max-width: 860px) {
+  /* minmax(0, …) not 1fr: a bare `1fr` track has an implicit min-content
+     minimum, so a long unbreakable value (e.g. "~6,328 (from TB Portals)")
+     blows the grid wider than its container. */
+  .ds-row-head {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 0.6rem 0.75rem !important;
+  }
+  .ds-row-head > *:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .ds-row-head > svg { grid-column: 2; grid-row: 1; justify-self: end; }
+  .ds-row-head > *:nth-child(n + 2):not(svg) { grid-column: 1 / -1; }
+  /* the yes/no capability marks read as a row, not a stack */
+  .ds-row-head > div:nth-child(3),
+  .ds-row-head > div:nth-child(4) {
+    grid-column: auto !important;
+    grid-row: 3;
+    text-align: left !important;
+  }
+  .ds-row-head > div:nth-child(5),
+  .ds-row-head > div:nth-child(6) { grid-column: auto !important; grid-row: 4; }
+  .ds-row-body { grid-template-columns: 1fr !important; gap: var(--sp-5) !important; }
+  .ds-col-head { display: none !important; }
+}
+
+/* Stat grids — fixed track counts so every card is the same width and no
+   empty tracks are left over (auto-fill leaves dead space at the row end). */
+
+.stat-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.stat-grid-5 {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+@media (max-width: 1000px) {
+  .stat-grid-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 860px) {
+  .stat-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .stat-grid-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 440px) {
+  .stat-grid-4,
+  .stat-grid-5 { grid-template-columns: minmax(0, 1fr); }
 }

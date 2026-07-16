@@ -1,0 +1,74 @@
+/* ============================================================
+   DATA VISUALISATION PALETTE — theme "Clinical", teal-led
+   ============================================================
+   Derived from the site's petrol-teal brand accent, not hand-picked.
+   Slot order is the colour-blindness safety mechanism, NOT cosmetic: it
+   was chosen by enumerating orderings and keeping the one that maximises
+   the minimum adjacent CVD separation, with teal pinned to slot 1 (it is
+   the brand accent and carries every single-series chart).
+
+   Validated with the dataviz validator against this site's real surfaces
+   (light #FFFFFF, dark #1E2226) — all six checks PASS in both modes:
+
+     light  worst adjacent CVD ΔE 11.0 (deutan) · normal-vision ΔE 24.2
+     dark   worst adjacent CVD ΔE 10.7 (deutan) · normal-vision ΔE 23.8
+
+   Targets are CVD ΔE ≥ 8 and normal-vision ΔE ≥ 15 (OKLab ×100), so both
+   modes clear the gates with margin. All six slots also clear 3:1 contrast
+   against their surface.
+
+   RULES (do not break these without re-running the validator):
+     - Assign slots in order, 1..6. Never cycle to a 7th — fold the tail
+       into "Other", facet, or use a table.
+     - Colour follows the entity, never its rank. Filtering a series out
+       must not repaint the survivors.
+     - Nominal categories with one series → every bar wears --viz-1.
+     - Ordered categories (funnel stages, tiers) → the ordinal ramp below,
+       never the categorical slots.
+     - Status colours are reserved and never impersonate a series.
+   ============================================================ */
+
+:root {
+  /* --- Categorical: identity (which series) --- */
+  --viz-1: #19a09f; /* teal   — brand slot, single-series default */
+  --viz-2: #c45c51; /* red    */
+  --viz-3: #3085cc; /* blue   */
+  --viz-4: #ad720d; /* amber  */
+  --viz-5: #876dc8; /* violet */
+  --viz-6: #44954a; /* green  */
+
+  /* --- Ordinal / sequential: magnitude & ordered stages (teal, light→dark) --- */
+  --viz-ramp-1: #54c2c0;
+  --viz-ramp-2: #04abaa;
+  --viz-ramp-3: #118f8e;
+  --viz-ramp-4: #067574;
+  --viz-ramp-5: #0c5c5b;
+
+  /* --- Chart chrome (recessive by design) --- */
+  --viz-surface: var(--surface);
+  --viz-grid: #ece7dd; /* hairline, one shade off the surface — solid, never dashed */
+  --viz-axis: #d6cfc1;
+  --viz-label: var(--ink-3);
+  --viz-track: #efece4; /* unfilled portion of a bar / meter track */
+}
+
+[data-theme="dark"] {
+  --viz-1: #19a09f;
+  --viz-2: #d1685d;
+  --viz-3: #3e91da;
+  --viz-4: #be7c09;
+  --viz-5: #937ad5;
+  --viz-6: #51a156;
+
+  /* Dark is a SELECTED set of steps for the dark surface, not an auto-flip.
+     The ramp anchor flips: the light end must still clear 2:1 on dark. */
+  --viz-ramp-1: #0c5c5b;
+  --viz-ramp-2: #067574;
+  --viz-ramp-3: #118f8e;
+  --viz-ramp-4: #04abaa;
+  --viz-ramp-5: #54c2c0;
+
+  --viz-grid: #2b3036;
+  --viz-axis: #3a4047;
+  --viz-track: #262b31;
+}

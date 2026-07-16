@@ -30,3 +30,6 @@ __pycache__/
 
 # Claude Design export — data-component handoff artifacts (reference only)
 docs/design_handoff_tb_site/design-system/components/data/
+
+# external OOD datasets (Montgomery/Shenzhen readings+masks, re-downloadable)
+data_external/

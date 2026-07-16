@@ -26,13 +26,16 @@ export function ExperimentRow({ id, title, metrics = [], badge, children, defaul
     <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r)", background: "var(--surface)", boxShadow: isOpen ? "var(--shadow)" : "var(--shadow-sm)", overflow: "hidden", transition: "box-shadow var(--transition)", ...style }}>
       <button
         onClick={toggle}
+        className="exp-row-head"
         style={{ all: "unset", display: "flex", alignItems: "center", gap: "1.25rem", width: "100%", boxSizing: "border-box", padding: "1rem 1.15rem", cursor: "pointer", background: isOpen ? "var(--paper-2)" : "transparent", borderBottom: isOpen ? "1px solid var(--line)" : "1px solid transparent" }}
         onMouseEnter={(e) => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = "var(--surface-2)"; }}
         onMouseLeave={(e) => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
       >
         <span style={{ fontFamily: "var(--font-mono)", fontWeight: "var(--w-semibold)", fontSize: "var(--text-body)", color: "var(--primary)", flexShrink: 0, width: "3.5rem" }}>{id}</span>
         <span style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-body)", color: "var(--ink)", flex: 1, minWidth: 0 }}>{title}</span>
-        <span style={{ display: "flex", gap: "1.5rem", alignItems: "baseline", flexShrink: 0 }}>
+        {/* Metrics must be allowed to shrink/wrap: as one rigid nowrap line they
+            pushed the whole page into horizontal scroll on a phone. */}
+        <span className="exp-row-metrics" style={{ display: "flex", gap: "1.5rem", alignItems: "baseline", minWidth: 0 }}>
           {metrics.map((m, i) => (
             <span key={i} style={{ textAlign: "right" }}>
               <span style={{ display: "block", fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "var(--ls-label)", color: "var(--ink-3)", fontWeight: "var(--w-semibold)" }}>{m.label}</span>

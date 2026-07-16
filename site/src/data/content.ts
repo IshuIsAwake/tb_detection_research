@@ -10,8 +10,8 @@ export interface Experiment {
   id: string;
   title: string;
   date: string;
-  outcome: { tone: string; label: string };
   headline: { label: string; value: string; tone: string }[];
+  /** Exactly four, so every experiment renders one identical row of cards. */
   stats: { label: string; value: string; tone: string }[];
   findings: ExperimentFinding[];
 }
@@ -21,16 +21,15 @@ export const EXPERIMENTS: Experiment[] = [
     id: "exp1",
     date: "20 Jun 2026",
     title: "YOLOv8n floor — positives-only, augmentation off",
-    outcome: { tone: "neutral", label: "Floor" },
     headline: [
       { label: "Active mAP50", value: "0.53", tone: "warn" },
       { label: "Matched IoU",  value: "0.74", tone: "good" },
     ],
     stats: [
-      { label: "Active mAP50",    value: "0.53",   tone: "warn" },
-      { label: "Matched IoU",     value: "0.74",   tone: "good" },
-      { label: "Overfits by",     value: "~ep 12", tone: "bad" },
-      { label: "Sick false-fire", value: "2–3×",   tone: "warn" },
+      { label: "Active mAP50",  value: "0.53",   tone: "warn" },
+      { label: "Matched IoU",   value: "0.74",   tone: "good" },
+      { label: "Overfits by",   value: "~ep 12", tone: "bad" },
+      { label: "Sick FA rate",  value: "2–3×",   tone: "warn" },
     ],
     findings: [
       { kind: "note",     text: "Bottleneck is <strong>recall, not box quality</strong> — matched IoU ~0.74 means lesions are missed, not mislocated." },
@@ -42,15 +41,15 @@ export const EXPERIMENTS: Experiment[] = [
     id: "exp2",
     date: "22 Jun 2026",
     title: "Negatives in detector training",
-    outcome: { tone: "bad", label: "Lever closed" },
     headline: [
       { label: "False alarms",   value: "collapse", tone: "good" },
       { label: "TB sensitivity", value: "~60%",     tone: "bad" },
     ],
     stats: [
-      { label: "False alarms",    value: "↓ collapse", tone: "good" },
-      { label: "Sensitivity cap", value: "~60%",       tone: "bad" },
-      { label: "Saturates at",    value: "0.25:1",     tone: "warn" },
+      { label: "False alarms",    value: "collapse", tone: "good" },
+      { label: "Sensitivity cap", value: "~60%",     tone: "bad" },
+      { label: "Saturates at",    value: "0.25:1",   tone: "warn" },
+      { label: "Ratio effect",    value: "in noise", tone: "warn" },
     ],
     findings: [
       { kind: "note",       text: "Background negatives <strong>collapse false alarms</strong> (even 0.25:1, saturates at once) but <strong>cap TB sensitivity at ~60%</strong>." },
@@ -62,7 +61,6 @@ export const EXPERIMENTS: Experiment[] = [
     id: "exp3",
     date: "23 Jun 2026",
     title: "Augmentation screen — 512 @ batch 16, positives-only",
-    outcome: { tone: "good", label: "Biggest lever" },
     headline: [
       { label: "Active mAP50", value: "0.74",  tone: "good" },
       { label: "vs off",       value: "+0.21", tone: "good" },
@@ -71,6 +69,7 @@ export const EXPERIMENTS: Experiment[] = [
       { label: "mAP50 (off)",    value: "0.53",       tone: "warn" },
       { label: "mAP50 (mosaic)", value: "0.74",       tone: "good" },
       { label: "Val peak moves", value: "ep 7 → 110", tone: "good" },
+      { label: "Finalists",      value: "geo, mosaic", tone: "default" },
     ],
     findings: [
       { kind: "decision", text: "Augmentation is the <strong>biggest lever yet</strong> — Active mAP50 0.53 (off) → 0.74 (mosaic). Also fixes overfitting: val-mAP peak moves from epoch ~7 to ~110–145." },
@@ -81,7 +80,6 @@ export const EXPERIMENTS: Experiment[] = [
     id: "exp4",
     date: "25 Jun 2026",
     title: "Multi-seed validation (3 seeds)",
-    outcome: { tone: "good", label: "Finalist" },
     headline: [
       { label: "Active mAP50", value: "0.70",     tone: "good" },
       { label: "Config",       value: "512 @ b16", tone: "default" },
@@ -89,8 +87,8 @@ export const EXPERIMENTS: Experiment[] = [
     stats: [
       { label: "mosaic @ 1024", value: "0.683–0.699", tone: "good" },
       { label: "geo @ 1024",    value: "0.667–0.671", tone: "warn" },
-      { label: "Obsolete",      value: "~0.20 (noise)", tone: "bad" },
-      { label: "512 noise",     value: "±0.029",       tone: "warn" },
+      { label: "Obsolete",      value: "~0.20",       tone: "bad" },
+      { label: "Seed noise",    value: "±0.029",      tone: "warn" },
     ],
     findings: [
       { kind: "decision",   text: "<strong>mosaic is the augmentation finalist</strong> — Active mAP50 bands across seeds don't overlap with geo. Final detector config: <strong>mosaic @ 512, batch 16</strong>." },
@@ -102,16 +100,15 @@ export const EXPERIMENTS: Experiment[] = [
     id: "exp5",
     date: "27 Jun 2026",
     title: "k-fold CV (k=5, mosaic @ 512, positives-only)",
-    outcome: { tone: "good", label: "Robust" },
     headline: [
       { label: "Active mAP50", value: "0.697 ± 0.023", tone: "good" },
       { label: "Split vs seed variance", value: "comparable", tone: "good" },
     ],
     stats: [
-      { label: "Active mAP50 (mean)", value: "0.697",       tone: "good" },
-      { label: "Std (CV)",            value: "±0.023",      tone: "good" },
-      { label: "Range (5 folds)",     value: "0.672–0.723", tone: "good" },
-      { label: "Loc IoU (mean)",      value: "0.739 ± 0.008", tone: "good" },
+      { label: "Active mAP50", value: "0.697",       tone: "good" },
+      { label: "Std (CV)",     value: "±0.023",      tone: "good" },
+      { label: "Fold range",   value: "0.672–0.723", tone: "good" },
+      { label: "Loc IoU",      value: "0.739",       tone: "good" },
     ],
     findings: [
       { kind: "decision", text: "The mosaic@512 number is <strong>robust — not split luck</strong>. Active mAP50 across 5 rotating folds: 0.697 ± 0.023 (range 0.672–0.723). The frozen-split value (~0.71) sits inside one std." },
@@ -125,16 +122,15 @@ export const EXPERIMENTS: Experiment[] = [
     id: "exp6",
     date: "29 Jun 2026",
     title: "VinDr init × freeze depth, then multi-seed confirm",
-    outcome: { tone: "good", label: "New champion" },
     headline: [
       { label: "Active mAP50", value: "0.745 ± 0.028", tone: "good" },
       { label: "vs COCO+mosaic", value: "+0.038", tone: "good" },
     ],
     stats: [
-      { label: "VinDr + mixup (champion)", value: "0.745 ± 0.028", tone: "good" },
-      { label: "COCO + mosaic (exp4)",     value: "0.707 ± 0.024", tone: "default" },
-      { label: "COCO + mixup",             value: "0.726 ± 0.025", tone: "default" },
-      { label: "Freezing the backbone",    value: "always worse",  tone: "bad" },
+      { label: "VinDr + mixup", value: "0.745 ± 0.028", tone: "good" },
+      { label: "COCO + mixup",  value: "0.726 ± 0.025", tone: "default" },
+      { label: "COCO + mosaic", value: "0.707 ± 0.024", tone: "default" },
+      { label: "Freezing",      value: "always worse",  tone: "bad" },
     ],
     findings: [
       { kind: "decision", text: "<strong>New champion: VinDr-init + mosaic_mixup + full fine-tune = Active mAP50 0.745 ± 0.028</strong> (3 seeds 0.762 / 0.706 / 0.767). Beats the COCO+mosaic baseline (0.707) by +0.038 — clears the ±0.025 bar." },
@@ -148,16 +144,15 @@ export const EXPERIMENTS: Experiment[] = [
     id: "exp7",
     date: "29 Jun 2026",
     title: "Resolution at 1024@16 (yolov8n, init × aug)",
-    outcome: { tone: "neutral", label: "No res payoff (at n)" },
     headline: [
       { label: "Best 1024 cell", value: "0.748 ± 0.025", tone: "good" },
       { label: "vs 512 champion", value: "tie (+0.003)", tone: "default" },
     ],
     stats: [
-      { label: "VinDr mosaic @1024", value: "0.748 ± 0.025", tone: "good" },
-      { label: "COCO mosaic @1024",  value: "0.721 ± 0.013", tone: "default" },
-      { label: "VinDr mixup @1024",  value: "0.716 ± 0.017", tone: "warn" },
-      { label: "COCO mixup @1024",   value: "0.703 ± 0.030", tone: "warn" },
+      { label: "VinDr mosaic", value: "0.748 ± 0.025", tone: "good" },
+      { label: "COCO mosaic",  value: "0.721 ± 0.013", tone: "default" },
+      { label: "VinDr mixup",  value: "0.716 ± 0.017", tone: "warn" },
+      { label: "COCO mixup",   value: "0.703 ± 0.030", tone: "warn" },
     ],
     findings: [
       { kind: "note",     text: "Full init×aug grid at 1024, 3 seeds each, evaluated locally on the sealed test (trained on Kaggle/Colab). <strong>1024 does not beat 512 at yolov8n</strong>: the best 1024 cell (VinDr mosaic, 0.748) only ties the 512 champion (0.745). Doubling the training cost buys nothing on Active mAP50." },
@@ -170,16 +165,15 @@ export const EXPERIMENTS: Experiment[] = [
     id: "exp8",
     date: "30 Jun 2026",
     title: "Model capacity (yolov8s) + inference tricks",
-    outcome: { tone: "neutral", label: "Baseline locked" },
     headline: [
       { label: "yolov8s best", value: "0.700 ± 0.047", tone: "warn" },
       { label: "vs champion", value: "no gain", tone: "default" },
     ],
     stats: [
-      { label: "yolov8s @512 mixup",   value: "0.695 ± 0.008", tone: "warn" },
-      { label: "yolov8s @1024 mosaic", value: "0.700 ± 0.047", tone: "warn" },
-      { label: "TTA on champion",      value: "0.742 ± 0.023", tone: "default" },
-      { label: "Champion (locked)",    value: "0.745",         tone: "good" },
+      { label: "v8s @512 mixup",  value: "0.695 ± 0.008", tone: "warn" },
+      { label: "v8s @1024 mosaic", value: "0.700 ± 0.047", tone: "warn" },
+      { label: "TTA on champion", value: "0.742 ± 0.023", tone: "default" },
+      { label: "Champion (v8n)",  value: "0.745",         tone: "good" },
     ],
     findings: [
       { kind: "decision", text: "<strong>YOLO detection baseline LOCKED at 0.745</strong> (VinDr-init + mixup + full fine-tune @ 512). Four levers all closed within the ±0.025 bar — resolution (exp7), capacity at 512 and 1024, and TTA. The bottleneck is <strong>data (799 images)</strong>, not the model." },
@@ -450,6 +444,10 @@ export interface Run {
   date: string;
   epochs?: number;
   patience?: number;
+  /** Defaults below are the project baseline: YOLOv8n, COCO-init, no freeze. */
+  model?: string;
+  init?: string;
+  freeze?: string;
   map50: string;
   precision: string;
   recall: string;
@@ -474,79 +472,79 @@ export interface Run {
 
 export const RUNS: Run[] = [
   // ── exp8: capacity (yolov8s) — all below the n baseline (data ceiling) ──
-  { name: "tbx_yolov8s_mosaic_1024_b16_s1", group: "exp8", aug: "mosaic", imgsz: 1024, batch: 16, seed: 1, date: "30 Jun 2026",
+  { name: "tbx_yolov8s_mosaic_1024_b16_s1", model: "YOLOv8s", group: "exp8", aug: "mosaic", imgsz: 1024, batch: 16, seed: 1, date: "30 Jun 2026",
     epochs: 200, patience: 100,
     map50: "0.466", precision: "0.403", recall: "0.580", tbCaught: "116/121", healthyFA: "6.7%", sickFA: "17.5%", trainTime: "—",
     desc: "yolov8s @ 1024 mosaic (COCO-init, Kaggle 2×T4). Active mAP50 = 0.739 — best s@1024 seed, still below COCO-n mosaic @1024 (0.721 band) and the champion (0.745). Bigger model + bigger images = no gain.",
     metrics: { active: "0.739", obsolete: "0.193", iou: "0.736", map5095: "0.347", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.486" }, large: { n: 105, v: "0.686" } } } },
-  { name: "tbx_yolov8s_mosaic_1024_b16_s0", group: "exp8", aug: "mosaic", imgsz: 1024, batch: 16, seed: 0, date: "30 Jun 2026",
+  { name: "tbx_yolov8s_mosaic_1024_b16_s0", model: "YOLOv8s", group: "exp8", aug: "mosaic", imgsz: 1024, batch: 16, seed: 0, date: "30 Jun 2026",
     epochs: 200, patience: 100,
     map50: "0.477", precision: "0.480", recall: "0.582", tbCaught: "118/121", healthyFA: "15.0%", sickFA: "18.3%", trainTime: "—",
     desc: "yolov8s @ 1024 mosaic, seed 0. Active mAP50 = 0.714.",
     metrics: { active: "0.714", obsolete: "0.241", iou: "0.750", map5095: "0.350", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.444" }, large: { n: 105, v: "0.800" } } } },
-  { name: "tbx_yolov8s_mosaic_1024_b16_s2", group: "exp8", aug: "mosaic", imgsz: 1024, batch: 16, seed: 2, date: "30 Jun 2026",
+  { name: "tbx_yolov8s_mosaic_1024_b16_s2", model: "YOLOv8s", group: "exp8", aug: "mosaic", imgsz: 1024, batch: 16, seed: 2, date: "30 Jun 2026",
     epochs: 200, patience: 100,
     map50: "0.429", precision: "0.398", recall: "0.450", tbCaught: "116/121", healthyFA: "5.8%", sickFA: "17.5%", trainTime: "—",
     desc: "yolov8s @ 1024 mosaic, seed 2. Active mAP50 = 0.648 — low seed; s@1024 is noisy (band 0.700 ± 0.047). Capacity adds variance, not accuracy.",
     metrics: { active: "0.648", obsolete: "0.210", iou: "0.737", map5095: "0.306", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.431" }, large: { n: 105, v: "0.714" } } } },
-  { name: "tbx_yolov8s_mosaic_mixup_512_b16_s2", group: "exp8", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 2, date: "30 Jun 2026",
+  { name: "tbx_yolov8s_mosaic_mixup_512_b16_s2", model: "YOLOv8s", group: "exp8", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 2, date: "30 Jun 2026",
     epochs: 200, patience: 100,
     map50: "0.477", precision: "0.465", recall: "0.520", tbCaught: "113/121", healthyFA: "9.2%", sickFA: "20.0%", trainTime: "38m",
     desc: "yolov8s @ 512 mixup (COCO-init, local). Active mAP50 = 0.704 — best s@512 seed, still below COCO-n mixup @512 (0.726). More capacity hurts slightly at 512.",
     metrics: { active: "0.704", obsolete: "0.249", iou: "0.744", map5095: "0.361", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.417" }, large: { n: 105, v: "0.762" } } } },
-  { name: "tbx_yolov8s_mosaic_mixup_512_b16_s0", group: "exp8", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 0, date: "30 Jun 2026",
+  { name: "tbx_yolov8s_mosaic_mixup_512_b16_s0", model: "YOLOv8s", group: "exp8", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 0, date: "30 Jun 2026",
     epochs: 200, patience: 100,
     map50: "0.497", precision: "0.467", recall: "0.613", tbCaught: "118/121", healthyFA: "10.8%", sickFA: "37.5%", trainTime: "38m",
     desc: "yolov8s @ 512 mixup, seed 0. Active mAP50 = 0.691.",
     metrics: { active: "0.691", obsolete: "0.304", iou: "0.734", map5095: "0.359", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.458" }, large: { n: 105, v: "0.790" } } } },
-  { name: "tbx_yolov8s_mosaic_mixup_512_b16_s1", group: "exp8", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 1, date: "30 Jun 2026",
+  { name: "tbx_yolov8s_mosaic_mixup_512_b16_s1", model: "YOLOv8s", group: "exp8", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 1, date: "30 Jun 2026",
     epochs: 200, patience: 100,
     map50: "0.431", precision: "0.307", recall: "0.573", tbCaught: "115/121", healthyFA: "3.3%", sickFA: "35.0%", trainTime: "38m",
     desc: "yolov8s @ 512 mixup, seed 1. Active mAP50 = 0.691. Tight s@512 band (0.695 ± 0.008).",
     metrics: { active: "0.691", obsolete: "0.171", iou: "0.728", map5095: "0.337", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.458" }, large: { n: 105, v: "0.771" } } } },
 
   // ── exp6 champion (VinDr + mixup, full fine-tune) — the 0.745 ± 0.028 config ──
-  { name: "exp6_vindr_mosaic_mixup_fznone_s2", group: "exp6", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 2, date: "29 Jun 2026",
+  { name: "exp6_vindr_mosaic_mixup_fznone_s2", init: "VinDr", freeze: "none", group: "exp6", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 2, date: "29 Jun 2026",
     best: true,
     map50: "0.511", precision: "0.504", recall: "0.584", tbCaught: "113/121", healthyFA: "2.5%", sickFA: "22.5%", trainTime: "15m",
     desc: "CHAMPION CONFIG. VinDr-init + mosaic_mixup + full fine-tune (no freeze) @ 512@16. Active mAP50 = 0.767 — best clean seed of the champion. Three seeds 0.762 / 0.706 / 0.767 → 0.745 ± 0.028, beating the COCO+mosaic baseline (0.707) by +0.038, clearing the ±0.025 bar.",
     metrics: { active: "0.767", obsolete: "0.255", iou: "0.729", map5095: "0.390", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.486" }, large: { n: 105, v: "0.800" } } } },
-  { name: "exp6_vindr_mosaic_mixup_fznone_s0", group: "exp6", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 0, date: "29 Jun 2026",
+  { name: "exp6_vindr_mosaic_mixup_fznone_s0", init: "VinDr", freeze: "none", group: "exp6", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 0, date: "29 Jun 2026",
     map50: "0.530", precision: "0.525", recall: "0.499", tbCaught: "118/121", healthyFA: "11.7%", sickFA: "27.5%", trainTime: "15m",
     desc: "Champion config, seed 0. Active mAP50 = 0.762. Clean confusion matrix (Active→Active 107–111, no Active→Obsolete bleed).",
     metrics: { active: "0.762", obsolete: "0.298", iou: "0.734", map5095: "0.386", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.528" }, large: { n: 105, v: "0.790" } } } },
-  { name: "exp6_vindr_mosaic_mixup_fznone_s1", group: "exp6", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 1, date: "29 Jun 2026",
+  { name: "exp6_vindr_mosaic_mixup_fznone_s1", init: "VinDr", freeze: "none", group: "exp6", aug: "mosaic + mixup", imgsz: 512, batch: 16, seed: 1, date: "29 Jun 2026",
     map50: "0.509", precision: "0.400", recall: "0.586", tbCaught: "113/121", healthyFA: "0.0%", sickFA: "19.2%", trainTime: "15m",
     desc: "Champion config, seed 1. Active mAP50 = 0.706 — the low seed (low-precision / high-recall calibration); read mAP50, not fixed-threshold counts.",
     metrics: { active: "0.706", obsolete: "0.312", iou: "0.731", map5095: "0.374", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.500" }, large: { n: 105, v: "0.752" } } } },
 
   // ── exp7: resolution sweep — 1024@16, yolov8n (eval-only; trained Kaggle/Colab) ──
-  { name: "tbx_vindr1024_mosaic_1024_b16_s1", group: "exp7", aug: "mosaic", imgsz: 1024, batch: 16, seed: 1, date: "29 Jun 2026",
+  { name: "tbx_vindr1024_mosaic_1024_b16_s1", init: "VinDr", group: "exp7", aug: "mosaic", imgsz: 1024, batch: 16, seed: 1, date: "29 Jun 2026",
     epochs: 200, patience: 100,
     map50: "0.537", precision: "0.592", recall: "0.565", tbCaught: "118/121", healthyFA: "5.0%", sickFA: "27.5%", trainTime: "—",
     desc: "VinDr-init mosaic @ 1024@16 (Colab). Active mAP50 = 0.762 — top 1024 cell. But it only ties the 512 champion (0.745): no resolution payoff at yolov8n.",
     metrics: { active: "0.762", obsolete: "0.312", iou: "0.748", map5095: "0.362", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.611" }, large: { n: 105, v: "0.848" } } } },
-  { name: "tbx_vindr1024_mosaic_1024_b16_s2", group: "exp7", aug: "mosaic", imgsz: 1024, batch: 16, seed: 2, date: "29 Jun 2026",
+  { name: "tbx_vindr1024_mosaic_1024_b16_s2", init: "VinDr", group: "exp7", aug: "mosaic", imgsz: 1024, batch: 16, seed: 2, date: "29 Jun 2026",
     epochs: 200, patience: 100,
     map50: "0.548", precision: "0.551", recall: "0.539", tbCaught: "116/121", healthyFA: "4.2%", sickFA: "24.2%", trainTime: "—",
     desc: "VinDr-init mosaic @ 1024. Active mAP50 = 0.762. VinDr mosaic @1024 = 0.748 ± 0.025 (3 seeds), +0.027 over COCO mosaic @1024 (0.721) — init helps a bit more at 1024.",
     metrics: { active: "0.762", obsolete: "0.335", iou: "0.727", map5095: "0.358", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.597" }, large: { n: 105, v: "0.724" } } } },
-  { name: "tbx_vindr1024_mosaic_1024_b16_s0", group: "exp7", aug: "mosaic", imgsz: 1024, batch: 16, seed: 0, date: "29 Jun 2026",
+  { name: "tbx_vindr1024_mosaic_1024_b16_s0", init: "VinDr", group: "exp7", aug: "mosaic", imgsz: 1024, batch: 16, seed: 0, date: "29 Jun 2026",
     epochs: 200, patience: 100,
     map50: "0.503", precision: "0.563", recall: "0.485", tbCaught: "116/121", healthyFA: "5.0%", sickFA: "19.2%", trainTime: "—",
     desc: "VinDr-init mosaic @ 1024, seed 0. Active mAP50 = 0.719.",
     metrics: { active: "0.719", obsolete: "0.287", iou: "0.747", map5095: "0.356", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.486" }, large: { n: 105, v: "0.733" } } } },
-  { name: "tbx_vindr1024_mosaic_mixup_1024_b16_s0", group: "exp7", aug: "mosaic + mixup", imgsz: 1024, batch: 16, seed: 0, date: "29 Jun 2026",
+  { name: "tbx_vindr1024_mosaic_mixup_1024_b16_s0", init: "VinDr", group: "exp7", aug: "mosaic + mixup", imgsz: 1024, batch: 16, seed: 0, date: "29 Jun 2026",
     epochs: 200, patience: 100,
     map50: "0.491", precision: "0.538", recall: "0.491", tbCaught: "117/121", healthyFA: "1.7%", sickFA: "28.3%", trainTime: "—",
     desc: "VinDr-init mixup @ 1024. Active mAP50 = 0.733. At 1024 mixup loses to mosaic on both inits — the mixup edge seen at 512 reverses with resolution.",
     metrics: { active: "0.733", obsolete: "0.249", iou: "0.738", map5095: "0.360", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.528" }, large: { n: 105, v: "0.733" } } } },
-  { name: "tbx_vindr1024_mosaic_mixup_1024_b16_s2", group: "exp7", aug: "mosaic + mixup", imgsz: 1024, batch: 16, seed: 2, date: "29 Jun 2026",
+  { name: "tbx_vindr1024_mosaic_mixup_1024_b16_s2", init: "VinDr", group: "exp7", aug: "mosaic + mixup", imgsz: 1024, batch: 16, seed: 2, date: "29 Jun 2026",
     epochs: 200, patience: 100,
     map50: "0.479", precision: "0.414", recall: "0.550", tbCaught: "118/121", healthyFA: "1.7%", sickFA: "22.5%", trainTime: "—",
     desc: "VinDr-init mixup @ 1024. Active mAP50 = 0.716. VinDr mixup @1024 = 0.716 ± 0.017 (3 seeds), below VinDr mosaic @1024 (0.748).",
     metrics: { active: "0.716", obsolete: "0.242", iou: "0.743", map5095: "0.350", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.458" }, large: { n: 105, v: "0.762" } } } },
-  { name: "tbx_vindr1024_mosaic_mixup_1024_b16_s1", group: "exp7", aug: "mosaic + mixup", imgsz: 1024, batch: 16, seed: 1, date: "29 Jun 2026",
+  { name: "tbx_vindr1024_mosaic_mixup_1024_b16_s1", init: "VinDr", group: "exp7", aug: "mosaic + mixup", imgsz: 1024, batch: 16, seed: 1, date: "29 Jun 2026",
     epochs: 200, patience: 100,
     map50: "0.477", precision: "0.430", recall: "0.519", tbCaught: "117/121", healthyFA: "5.8%", sickFA: "25.8%", trainTime: "—",
     desc: "VinDr-init mixup @ 1024, seed 1. Active mAP50 = 0.700.",
@@ -583,27 +581,27 @@ export const RUNS: Run[] = [
     metrics: { active: "0.677", obsolete: "0.198", iou: "0.736", map5095: "0.336", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.403" }, large: { n: 105, v: "0.800" } } } },
 
   // ── exp6: VinDr init × freeze depth ─────────────────────────────────────
-  { name: "exp6_vindr_mosaic_fz8_s0", group: "exp6", aug: "mosaic", imgsz: 512, batch: 16, seed: 0, date: "28 Jun 2026",
+  { name: "exp6_vindr_mosaic_fz8_s0", init: "VinDr", freeze: "8", group: "exp6", aug: "mosaic", imgsz: 512, batch: 16, seed: 0, date: "28 Jun 2026",
     epochs: 150, patience: 50,
     map50: "0.489", precision: "0.479", recall: "0.532", tbCaught: "109/121", healthyFA: "1.7%", sickFA: "14.2%", trainTime: "10m",
     desc: "VinDr-init, freeze=8 layers, mosaic @ 512@16. Looked like the freeze-sweep winner at 0.701 — but its confusion matrix exposed it as an ARTIFACT: 32 Active→Obsolete mislabels inflated the AP. Not a real result. The clean multi-seed champion is full fine-tune with mixup (0.745). Read mAP50 with the confusion matrix, not in isolation.",
     metrics: { active: "0.701", obsolete: "0.276", iou: "0.741", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.347" }, large: { n: 105, v: "0.762" } } } },
-  { name: "exp6_vindr_mosaic_fz13_s0", group: "exp6", aug: "mosaic", imgsz: 512, batch: 16, seed: 0, date: "28 Jun 2026",
+  { name: "exp6_vindr_mosaic_fz13_s0", init: "VinDr", freeze: "13", group: "exp6", aug: "mosaic", imgsz: 512, batch: 16, seed: 0, date: "28 Jun 2026",
     epochs: 150, patience: 50,
     map50: "0.498", precision: "0.416", recall: "0.563", tbCaught: "105/121", healthyFA: "0.0%", sickFA: "11.7%", trainTime: "8m",
     desc: "VinDr-init, freeze=13 layers, mosaic @ 512@16. Active mAP50 = 0.695 — second-best in the sweep. Fewest healthy false alarms (0.0% @0.25) and lowest sick FA (11.7%) but catches fewer TB cases (105/121). Deeper freeze means only the detection head trains — fast (8m) but less plastic.",
     metrics: { active: "0.695", obsolete: "0.302", iou: "0.747", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.431" }, large: { n: 105, v: "0.762" } } } },
-  { name: "exp6_vindr_mosaic_fz10_s0", group: "exp6", aug: "mosaic", imgsz: 512, batch: 16, seed: 0, date: "28 Jun 2026",
+  { name: "exp6_vindr_mosaic_fz10_s0", init: "VinDr", freeze: "10", group: "exp6", aug: "mosaic", imgsz: 512, batch: 16, seed: 0, date: "28 Jun 2026",
     epochs: 150, patience: 50,
     map50: "0.503", precision: "0.440", recall: "0.575", tbCaught: "112/121", healthyFA: "0.8%", sickFA: "16.7%", trainTime: "9m",
     desc: "VinDr-init, freeze=10 layers, mosaic @ 512@16. Active mAP50 = 0.691. Highest overall mAP50 in the sweep (0.503) and good recall. Low healthy FA (0.8%). All freeze depths from 8–13 cluster within noise of each other.",
     metrics: { active: "0.691", obsolete: "0.315", iou: "0.747", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.431" }, large: { n: 105, v: "0.790" } } } },
-  { name: "exp6_vindr_mosaic_fznone_s0", group: "exp6", aug: "mosaic", imgsz: 512, batch: 16, seed: 0, date: "28 Jun 2026",
+  { name: "exp6_vindr_mosaic_fznone_s0", init: "VinDr", freeze: "none", group: "exp6", aug: "mosaic", imgsz: 512, batch: 16, seed: 0, date: "28 Jun 2026",
     epochs: 150, patience: 50,
     map50: "0.440", precision: "0.454", recall: "0.500", tbCaught: "119/121", healthyFA: "5.0%", sickFA: "28.3%", trainTime: "22m",
     desc: "VinDr-init, no backbone freeze, mosaic @ 512@16. Active mAP50 = 0.683 — unfrozen VinDr backbone fine-tuned end-to-end. Highest TB catch (119/121) but worst false-alarm rate (5.0% healthy / 28.3% sick). Fully unfrozen is the slowest (22m) and noisiest configuration.",
     metrics: { active: "0.683", obsolete: "0.196", iou: "0.728", lesion: { small: { n: 2, v: "0.000" }, medium: { n: 72, v: "0.500" }, large: { n: 105, v: "0.771" } } } },
-  { name: "exp6_vindr_mosaic_fz4_s0", group: "exp6", aug: "mosaic", imgsz: 512, batch: 16, seed: 0, date: "28 Jun 2026",
+  { name: "exp6_vindr_mosaic_fz4_s0", init: "VinDr", freeze: "4", group: "exp6", aug: "mosaic", imgsz: 512, batch: 16, seed: 0, date: "28 Jun 2026",
     epochs: 150, patience: 50,
     map50: "0.400", precision: "0.390", recall: "0.490", tbCaught: "116/121", healthyFA: "6.7%", sickFA: "31.7%", trainTime: "14m",
     desc: "VinDr-init, freeze=4 layers (stem only), mosaic @ 512@16. Active mAP50 = 0.668 — weakest of the sweep. Shallow freeze underperforms deeper freeze on all metrics. Highest false-alarm rate alongside fznone.",
@@ -729,15 +727,20 @@ export interface RunSetting { label: string; value: string; }
 
 export function buildRunSettings(r: Run): RunSetting[] {
   return [
-    { label: "Model",        value: "YOLOv8n" },
+    { label: "Model",        value: r.model ?? "YOLOv8n" },
+    { label: "Init",         value: r.init  ?? "COCO" },
+    { label: "Freeze",       value: r.freeze ?? "none" },
     { label: "Image size",   value: String(r.imgsz) },
     { label: "Batch",        value: String(r.batch) },
+    { label: "Augmentation", value: r.aug },
     { label: "Epochs",       value: String(r.epochs ?? 150) },
     { label: "Patience",     value: String(r.patience ?? 50) },
-    { label: "Augmentation", value: r.aug },
     { label: "Optimizer",    value: "SGD" },
     { label: "lr0",          value: "0.01" },
     { label: "Seed",         value: "s" + r.seed },
     { label: "Sampling",     value: "Positives-only" },
+    { label: "AMP",          value: "off" },
+    { label: "Classes",      value: "Active, Obsolete" },
+    { label: "Test set",     value: "Sealed 360" },
   ];
 }

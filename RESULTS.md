@@ -155,6 +155,50 @@ problem (loc IoU ~0.74 throughout) — recall is, and recall is data-limited.
 16 = Active mAP50 0.745 ± 0.028** on the sealed test. This is the detection
 baseline the rest of the project builds on.
 
+## exp9 — cross-domain generalisation (Montgomery + Shenzhen)
+
+First test on X-rays from OTHER hospitals. TBX11K bundles a train/val slice of
+Montgomery + Shenzhen under `imgs/extra/mc+shenzhen/`, already 512² by the TBX11K
+pipeline (so preprocessing matches training) and — verified — **none of these ids
+are in our frozen split, so no training leakage.** 400 images: 198 TB-positive
+(31 Montgomery + 167 Shenzhen) + 202 normal. Image-level labels only (no external
+lesion boxes) → this is a **sensitivity** test (does it fire on a TB lung?) + a
+box-quality **eyeball**, not a mAP. A model "fires" if it emits ≥1 box ≥ conf.
+Four configs, 3 seeds each (`exp9_cross_domain.py`, inference-only, eval local).
+
+**TB sensitivity (TB-only denominator), Combined, mean ± std:**
+
+| config            | conf≥0.10   | conf≥0.25   | conf≥0.50   | normal FA@0.25 |
+|-------------------|-------------|-------------|-------------|----------------|
+| best_512          | 0.901±.015  | 0.793±.023  | 0.545±.025  | 0.031          |
+| **best_512 +TTA** | **0.963**   | **0.894**   | 0.690       | 0.101          |
+| best_1024         | 0.860±.028  | 0.719±.050  | 0.463±.153  | 0.046          |
+| best_1024 +TTA    | 0.897       | 0.817±.017  | 0.613       | 0.069          |
+
+- **The 512 detector generalises — ~79% TB sensitivity out-of-the-box, ~89% with
+  TTA — on hospitals it never saw**, with single-digit-to-~10% false-alarm on
+  normal films. For a positives-only sensitive detector that is a strong result.
+- **Box quality holds cross-domain**, backed two ways without external boxes
+  (`exp9_overlays.py`, best_512_tta): (a) **quadrant agreement** — the detector's
+  box centre lands in the lung zone named by the clinical reading in **79%
+  (Montgomery, n=19 localised) / 88% (Shenzhen, n=115)** of cases; (b) **in-lung
+  fraction** — via Montgomery's manual lung masks, **81%** of each detector box's
+  area sits inside the lung field (not spraying into mediastinum/borders). Boxes
+  cluster in the upper zones = TB's apical predilection. Readings parsed to coarse
+  quadrants with the patient→image laterality flip (patient-right = image-left).
+- **512 > 1024 cross-domain**, at every conf, with and without TTA — the reverse
+  of the "maybe 1024 wins on a new dataset" hypothesis. 1024 is also much noisier
+  (conf≥0.50 std 0.15 vs 0.03). So 512 wasn't only the cheaper pick, it's the
+  better one here. (Caveat: best_1024 also swaps mixup→mosaic, so this bundles
+  resolution + aug; `1024_mosaic_mixup` weights exist on disk to isolate it later.)
+- **TTA — a dead tie IN-domain (exp8) — is a real lever CROSS-domain** (+0.10
+  sensitivity at conf≥0.25). Coherent: domain shift makes the model
+  under-confident, so TTA's recall recovery (which netted flat vs precision
+  in-domain on conf-integrated mAP50) now dominates at a fixed conf gate. Costs
+  FA (3%→10% on normals) — the right trade for a sensitive screener. ~~TTA is a
+  tie~~ — narrowed: a tie in-domain, a gain cross-domain.
+- **Best cross-domain screener = best_512 + TTA.**
+
 ---
 
 ## Next — the two-stage pipeline (the original intent)

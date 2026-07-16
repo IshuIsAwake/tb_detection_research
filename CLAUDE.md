@@ -68,10 +68,14 @@ from yolo_common import settings, splits, metrics, train_eval
   self-check downloads a helper model that 404s in some envs, and AMP is a
   confound for a deterministic floor.
 
-## The GPU-training rule
+## The GPU rule
 
-The user runs GPU training. Write code and hand back exact copy-pasteable
-commands; do **not** launch a real (non-smoke) training run yourself.
+The user runs **all** GPU work themselves — training **and** eval/inference —
+and monitors it. Write the code and hand back the exact copy-pasteable command
+with the required settings filled in; do **not** launch a real (non-smoke) GPU
+run yourself. This covers local eval / inference passes too (e.g. the exp9
+cross-domain sensitivity run), not only training. The only exception is
+`TB_SMOKE=1` plumbing checks.
 
 ## Code style
 
@@ -85,3 +89,43 @@ shared package). Pure geometry/conversion helpers stay free of training deps.
 Docs describe intent. Investigate the gap; do not silently "fix" code to match
 docs or docs to match code. If the gap is real, surface it. The exp1 inventory
 step (`inventory_or_halt`) enforces this for the data.
+
+## The site (`site/`)
+
+Vite + React + react-router on **HashRouter**, deployed to GitHub Pages. No UI,
+chart or icon libraries — everything is inline SVG + CSS custom properties.
+
+Layout: a collapsible left sidebar (`components/Sidebar.tsx`); there is no top
+bar. `data/nav.ts` lists PAGES only — the sub-sections under the active page are
+**discovered from the DOM** at runtime (any element with `data-section`, emitted
+by `ReadSection`). So the prose is the single source of truth for the outline and
+the two cannot drift. Don't add a parallel list of sections.
+
+Rules that cost a debugging session if broken:
+
+- **HashRouter means `href="#some-id"` is a ROUTE, not an anchor.** In-page jumps
+  must be programmatic (`scrollToSection`).
+- **Chart colours come from `tokens/viz.css`,** a teal-led palette derived from
+  the brand accent and validated (all six checks pass, both modes, against this
+  site's real surfaces). Slot order is the colour-blindness safety mechanism, not
+  taste. Assign slots 1..6 in order, never cycle to a 7th. Nominal one-series
+  bars all wear `--viz-1`; ordered stages use the `--viz-ramp-*` ramp. Re-run the
+  dataviz validator if you touch a value.
+- **Citations are per-section and deduped.** Each page owns its `SOURCES` and its
+  superscripts restart at 1. The bibliography is a native `<details>` so a
+  `<Cite>` can force it open by id. `makeCite` warns on duplicate URLs in dev.
+- **Diagram hover handlers must use the DOM names** (`onMouseEnter`/`onMouseLeave`).
+  The `on(part)` helper is spread onto raw `<g>` elements as well as `<Block>`;
+  custom prop names silently no-op on a `<g>` (React only warns).
+- **X-ray figures ship boxes as DATA, not burned into pixels** (`data/xrays.ts`,
+  regenerate with `python site/scripts/build_xray_assets.py`). Boxes come from the
+  COCO JSON at 512×512 — never the VOC XML. That's what makes the reveal toggle
+  possible, and it keeps the images ~15 KB each.
+- **Nothing may scroll the page horizontally.** Wide tables get their own
+  `overflow-x: auto` container; long unbreakable run names need
+  `overflow-wrap: anywhere`; grid tracks that hold them need `minmax(0, 1fr)`,
+  since a bare `1fr` has a min-content floor that blows the grid out.
+
+Verify with a real browser before calling site work done — `npm run build`, then
+`npx vite preview`, then check every page at 390/768/1440 in both themes. Type
+checking will not catch a dead hover handler or a zero-height hit target.

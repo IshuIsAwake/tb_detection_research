@@ -22,6 +22,7 @@ function DatasetRow({ ds, open, onToggle }: { ds: Dataset; open: boolean; onTogg
     <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r)", background: "var(--surface)", boxShadow: open ? "var(--shadow)" : "var(--shadow-sm)", overflow: "hidden", transition: "box-shadow var(--transition)" }}>
       <button
         onClick={onToggle}
+        className="ds-row-head"
         style={{ all: "unset", boxSizing: "border-box", cursor: "pointer", width: "100%", display: "grid", gridTemplateColumns: "1.5fr 0.95fr 0.5fr 0.5fr 0.7fr 0.8fr auto", alignItems: "center", gap: "1rem", padding: "1rem 1.15rem", background: open ? "var(--paper-2)" : "transparent", borderBottom: open ? "1px solid var(--line)" : "1px solid transparent" }}
         onMouseEnter={(e) => { if (!open) (e.currentTarget as HTMLElement).style.background = "var(--surface-2)"; }}
         onMouseLeave={(e) => { if (!open) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
@@ -40,7 +41,7 @@ function DatasetRow({ ds, open, onToggle }: { ds: Dataset; open: boolean; onTogg
         </svg>
       </button>
       {open && (
-        <div style={{ padding: "var(--sp-5) 1.15rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--sp-6)" }}>
+        <div className="ds-row-body" style={{ padding: "var(--sp-5) 1.15rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--sp-6)" }}>
           <div>
             <Eyebrow color="var(--ink-3)">Statistics</Eyebrow>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--sp-2)", margin: "var(--sp-3) 0 var(--sp-5)" }}>
@@ -87,7 +88,9 @@ export function DataPage() {
         </div>
       }>Public TB &amp; CXR datasets</SectionTitle>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 0.95fr 0.5fr 0.5fr 0.7fr 0.8fr auto", gap: "1rem", padding: "0 1.15rem 0.7rem", fontSize: "var(--text-label)", textTransform: "uppercase", letterSpacing: "var(--ls-label)", color: "var(--ink-3)", fontWeight: "var(--w-semibold)" }}>
+      {/* Column labels for the 7-column desktop grid. Hidden on mobile, where the
+          rows reflow and there are no columns left for these to label. */}
+      <div className="ds-col-head" style={{ display: "grid", gridTemplateColumns: "1.5fr 0.95fr 0.5fr 0.5fr 0.7fr 0.8fr auto", gap: "1rem", padding: "0 1.15rem 0.7rem", fontSize: "var(--text-label)", textTransform: "uppercase", letterSpacing: "var(--ls-label)", color: "var(--ink-3)", fontWeight: "var(--w-semibold)" }}>
         <span>Dataset</span><span>TB images</span><span style={{ textAlign: "center" }}>BBox</span><span style={{ textAlign: "center" }}>Seg</span><span>Access</span><span>Role</span><span></span>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
