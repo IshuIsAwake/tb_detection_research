@@ -7,13 +7,18 @@ retinanet.py — Fine-tune a COCO-pretrained torchvision RetinaNet (ResNet50-FPN
 
     All logic is shared in yolo_common/tv_detect.py (repo no-copy-paste rule);
     faster_rcnn.py is the two-stage sibling. See that module's docstring for the
-    comparability + framework caveats (torchvision has no mosaic/mixup; big model
-    on 559 images; AP is a self-contained COCO-style AP@0.5).
+    comparability + framework caveats (big model on 559 images; AP is a
+    self-contained COCO-style AP@0.5; mosaic/mixup are ours, not torchvision's).
 
 USAGE
-    TB_SMOKE=1 python yolo_experiments/retinanet.py                 # plumbing (CPU ok)
+    TB_SMOKE=1 python yolo_experiments/retinanet.py --name smoke    # plumbing (CPU ok)
     python yolo_experiments/retinanet.py --epochs 40 --batch 2      # user runs (GPU)
     SEED=1 python yolo_experiments/retinanet.py                     # another seed
+
+⚠ ALWAYS PASS --name ON A SMOKE RUN. The default tag is f"{arch}_s{SEED}" —
+    i.e. `retinanet_s0`, a REAL recorded run (0.7393). Its results directory has
+    already been destroyed once by a 2-epoch smoke run; metrics.json, summary.txt
+    and best.pt are all overwritten in place, with no confirmation.
 """
 
 from __future__ import annotations

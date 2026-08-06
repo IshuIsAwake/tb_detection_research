@@ -1,7 +1,7 @@
 """
 inventory.py — Step 0 data sanity check, shared by every experiment.
 
-Verifies the on-disk TBX11K data against data_research_report.md (folder counts,
+Verifies the on-disk TBX11K data against docs/data_research_report.md (folder counts,
 799 positives, box histogram, class map) and HALTS on any contradiction rather
 than guessing or silently "fixing". This enforces the repo's "when docs and code
 disagree, surface it" rule for the data.
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from yolo_common import convert, settings as S
 
-# Expected values from data_research_report.md / README — halt if reality differs.
+# Expected values from docs/data_research_report.md / README — halt if reality differs.
 # `extra` (External: DA/DB/Montgomery/Shenzhen) is out of scope and nested in
 # subdirs, so it is reported for info only, never hard-checked.
 EXPECT_FOLDERS = {"tb": 800, "health": 3800, "sick": 3800, "test": 3302}

@@ -104,6 +104,35 @@ OUT_NAME  = os.environ.get("OUT_NAME", "vindr_retinanet")
 # background, so a CSV class_id c maps to label c+1.
 NUM_CLASSES = 14 + 1
 
+# ⚠⚠ EVERY KNOB, RESOLVED, INTO EVERY CHECKPOINT. Read this before changing it.
+#
+# This is the fix for the most expensive class of bug this project has: a Kaggle
+# treatment/control pair that silently disagreed on one setting. Config here arrives as
+# hand-typed environment variables in a notebook cell, once per run, and nothing about
+# the launch is recoverable afterwards — /kaggle/working does not persist and the logs
+# go with it. The old `meta` saved batch/lr/epochs/freeze_bn/seed/n_train but NOT
+# BN_RECALIB, which was the one knob that differed between vindr_retinanet_best.pt and
+# vindr_retinanet_cocoinit_best.pt. Consequence: the COCO control trained 22 epochs on
+# untouched torchvision BatchNorm statistics while the BYOL arm got 50 batches of
+# in-domain re-estimation, the two were treated as a matched pair for a day, and the
+# mismatch was only found by counting `num_batches_tracked` (864384 = the shipped
+# torchvision value, vs 50) long after both runs were paid for.
+#
+# So: dump the whole resolved namespace, not a hand-picked subset. A knob nobody
+# thought to record is exactly the knob that will differ. `tv_detect` prints this back
+# out when it loads the checkpoint, so an asymmetry is visible at load time.
+RUN_CONFIG = {
+    "imgsz": IMGSZ, "batch": BATCH, "accum": ACCUM, "eff_batch": BATCH * ACCUM,
+    "epochs": EPOCHS, "lr": LR, "patience": PATIENCE, "val_frac": VAL_FRAC,
+    "seed": SEED, "workers": WORKERS, "device": DEVICE, "negatives": NEGATIVES,
+    "max_images": MAX_IMAGES, "smoke": SMOKE, "warmup_ep": WARMUP_EP,
+    "backbone_weights": BACKBONE_WEIGHTS or None,
+    "freeze_bn": FREEZE_BN, "bn_recalib": BN_RECALIB,
+    "num_classes": NUM_CLASSES, "out_name": OUT_NAME,
+}
+
+GRAD_CLIP_NORM = float(os.environ.get("GRAD_CLIP_NORM", "0"))   # 0 = off; see tv_detect.py
+
 
 def seed_everything(seed: int) -> None:
     import torch
@@ -296,6 +325,7 @@ def recalibrate_backbone_bn(model, ds, device, n_batches: int, batch: int = 4) -
     bns = [m for m in model.backbone.modules() if isinstance(m, nn.BatchNorm2d)]
     if not bns or n_batches <= 0:
         return 0
+    saved_momentum = [m.momentum for m in bns]   # restored below
     for m in bns:
         m.reset_running_stats()
         m.momentum = None                      # cumulative average over this pass
@@ -312,6 +342,11 @@ def recalibrate_backbone_bn(model, ds, device, n_batches: int, batch: int = 4) -
             model.backbone(x.tensors)
             seen += len(imgs)
     model.train(was)
+    # Restore momentum: `None` means "cumulative average since the last reset", correct
+    # for THIS pass and wrong for training, where it would make the statistics ossify as
+    # 1/n shrinks. Masked while FREEZE_BN=1 (BN never updates), live at FREEZE_BN=0.
+    for m, mom in zip(bns, saved_momentum):
+        m.momentum = mom
     print(f"[bn] recalibrated {len(bns)} BatchNorm layers on {seen} images @ {IMGSZ}px "
           f"(through model.transform — ImageNet-normalised, as training feeds it)")
     return seen
@@ -396,10 +431,21 @@ def main() -> None:
         items = items[:MAX_IMAGES]
     if SMOKE:
         items = items[:24]
+    # ⚠ SORT BEFORE SHUFFLE — the shuffle is seeded but the INPUT ORDER was not.
+    # `items` is built by iterating `build_labels`' dict, which is keyed off a set of
+    # image ids, so its order varies with string hashing between processes.
+    # `seed_everything` writes PYTHONHASHSEED, but that is a no-op after the interpreter
+    # has already started, so it never pinned anything. Seeding a shuffle of a
+    # differently-ordered list gives a different split every run — meaning the treatment
+    # and control rungs did not even train on the same 13,800 images. Sorting by path
+    # makes the split a pure function of SEED, so a re-run reproduces it and a paired
+    # run matches it.
+    items.sort(key=lambda t: str(t[0]))
     random.Random(SEED).shuffle(items)
     n_val = max(1, int(len(items) * VAL_FRAC))
     val_items, train_items = items[:n_val], items[n_val:]
-    print(f"[split] train={len(train_items)} val={len(val_items)} (VAL_FRAC={VAL_FRAC}, seed={SEED})")
+    print(f"[split] train={len(train_items)} val={len(val_items)} (VAL_FRAC={VAL_FRAC}, "
+          f"seed={SEED}, deterministic: sorted before shuffle)")
 
     ds_tr = VinDrDetDataset(train_items, IMGSZ, train=True)
     ds_va = VinDrDetDataset(val_items, IMGSZ, train=False)
@@ -420,8 +466,15 @@ def main() -> None:
     # trained on — whatever the init. Gating on the init instead gave the BYOL arm VinDr@512
     # stats while the COCO control kept frozen COCO natural-image stats, so any BYOL win would
     # be partly the recalibration. Same class of asymmetry as the bug this call had inside it.
+    n_recal = 0
     if BN_RECALIB and FREEZE_BN:
-        recalibrate_backbone_bn(model, ds_tr, device, BN_RECALIB)
+        n_recal = recalibrate_backbone_bn(model, ds_tr, device, BN_RECALIB)
+    else:
+        # Say it out loud. The silent version of this branch is what produced an
+        # unmatched pair; a control that skipped recalibration must announce itself.
+        print(f"[bn] ⚠ NO recalibration (BN_RECALIB={BN_RECALIB}, FREEZE_BN={FREEZE_BN}) "
+              f"— this backbone keeps the BN statistics it arrived with. If the paired "
+              f"run DID recalibrate, these two are not comparable.", flush=True)
     n_bn = freeze_backbone_bn(model) if FREEZE_BN else 0
     if FREEZE_BN:
         print(f"[bn] froze {n_bn} backbone BatchNorm layers — required at batch {BATCH}")
@@ -456,7 +509,16 @@ def main() -> None:
                 raise SystemExit(f"HALT: non-finite loss at ep{ep+1} step{i} — stopping "
                                  f"before it writes a poisoned checkpoint.")
             scaler.scale(loss / ACCUM).backward()
-            if (i + 1) % ACCUM == 0:
+            if (i + 1) % ACCUM == 0 or (i + 1) == len(dl_tr):
+                # Clip on UNSCALED grads: one exploding batch otherwise makes GradScaler
+                # skip the step and halve the scale, and a recurrence decays the scale to
+                # subnormal — after which every gradient underflows to zero and the model
+                # is frozen while the loop still reports "training". That cost the TBX rung
+                # 31 dead epochs on 2026-08-02. The `or (i+1)==len(dl_tr)` also flushes the
+                # final partial accumulation window, which used to be silently dropped.
+                if GRAD_CLIP_NORM > 0:
+                    scaler.unscale_(opt)
+                    torch.nn.utils.clip_grad_norm_(params, GRAD_CLIP_NORM)
                 scaler.step(opt); scaler.update(); opt.zero_grad(set_to_none=True)
             run += float(loss.detach()); nb += 1; gstep += 1
             if i % 50 == 0:
@@ -476,8 +538,13 @@ def main() -> None:
         print(f"[ep {ep+1:03d}/{epochs}] train_loss={run/max(1,nb):.4f}  val_loss={vl:.4f}  "
               f"lr={cos_lr:.2e}  {time.time()-t0:.0f}s", flush=True)
 
+        # `config` is the FULL resolved namespace — see RUN_CONFIG's note. Never trim it
+        # back to a hand-picked subset; the knob nobody records is the one that differs.
+        # `bn_recalib_images` is what ACTUALLY ran, not what was requested.
         meta = {"epoch": ep + 1, "of": epochs, "val_loss": round(vl, 5),
                 "train_loss": round(run / max(1, nb), 5), "backbone_init": binit,
+                "config": RUN_CONFIG, "bn_recalib_images": n_recal,
+                "grad_clip_norm": GRAD_CLIP_NORM,
                 "freeze_bn": FREEZE_BN, "imgsz": IMGSZ, "batch": BATCH, "accum": ACCUM,
                 "lr": LR, "seed": SEED, "negatives": NEGATIVES,
                 "n_train": len(train_items), "n_val": len(val_items)}

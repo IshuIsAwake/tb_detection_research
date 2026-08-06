@@ -29,11 +29,15 @@ COMPARABILITY NOTE
 FRAMEWORK CAVEATS (stated, not hidden)
     - Default aug `geo` MATCHES YOLO's `_GEO` level (box-aware affine: degrees=10,
       translate=0.1, scale=[0.5,1.5], fliplr=0.5) so the run is comparable to our
-      YOLO `geo` runs (≈0.685 Active mAP50). torchvision has NO mosaic/mixup, so
-      the mosaic_mixup champion (0.745) is a SEPARATE arm — this isolates the
-      ARCHITECTURE at a matched geo recipe. A ResNet-50-FPN (~30-40M params) on
-      559 train positives is a big model on tiny data — COCO-pretrained, so it is
-      transfer, but expect variance.
+      YOLO `geo` runs (≈0.685 Active mAP50) — that isolates the ARCHITECTURE at a
+      matched recipe. A ResNet-50-FPN (~30-40M params) on 559 train positives is a
+      big model on tiny data — COCO-pretrained, so it is transfer, but expect
+      variance.
+    - ⚠ `--aug mosaic|mosaic_mixup` now EXIST here (added 2026-08-03). torchvision
+      ships neither, so both are implemented in TBDetDataset — see the mosaic block
+      for why mosaic cannot be a v2 transform and why the composite must be cropped
+      back to imgsz. They are the SHAPE of Ultralytics' versions, not a port, so
+      they compare validly to `geo` HERE but do not reproduce YOLO's mosaic cell.
     - Detection models resize to min_size/max_size internally; we pin both to the
       image size (512) so inputs match the YOLO 512 runs and fit 6 GB.
 
@@ -47,6 +51,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -54,6 +59,37 @@ from pathlib import Path
 import numpy as np
 
 from yolo_common import metrics, settings as S, splits
+
+
+# ── single-class (lesion-finder) mode ─────────────────────────────────────────
+# Set ONCE by run() from --single-class. When False every code path below is
+# bit-identical to the 2-class one that produced the 13 runs on the board.
+#
+# Why a module flag and not settings.CLASS_NAMES: convert.py re-verifies the
+# global class map against the COCO JSON and halts on mismatch, and the YOLO
+# label files on disk are 2-class. So the merge is a RUNTIME transform applied
+# after reading, never a change to the frozen data or the global vocabulary.
+#
+# ⚠ A single-class run reports its headline under the key "lesion", NOT "active".
+# The alias would have been free, but a lesion number sitting in metrics.json
+# under "active" is indistinguishable from a 2-class Active number and would go
+# straight onto the board next to 0.7580. Loud KeyError beats a silent mix-up.
+SINGLE_CLASS = False
+
+
+def _fg(cls: int) -> int:
+    """GT class -> foreground index. Single-class merges Active+Obsolete into 0."""
+    return 0 if SINGLE_CLASS else cls
+
+
+def class_keys() -> list[str]:
+    """Per-class report keys, in output order."""
+    return ["lesion"] if SINGLE_CLASS else ["active", "obsolete"]
+
+
+def headline_key() -> str:
+    """The class whose mAP50 is the run's headline / model-selection signal."""
+    return "lesion" if SINGLE_CLASS else "active"
 
 
 # ── device ────────────────────────────────────────────────────────────────────
@@ -68,22 +104,85 @@ def resolve_device(dev: str | None):
 
 
 # ── dataset ───────────────────────────────────────────────────────────────────
-def _build_aug(aug: str):
+_GEO_AUGS = ("geo", "mosaic", "mosaic_mixup")   # levels that carry the YOLO _GEO affine
+
+
+def _build_aug(aug: str, translate_div: float = 1.0):
     """Box-aware train transform (torchvision v2). `geo` MATCHES YOLO's
     yolo_common/aug.py `_GEO` level so a torchvision run is comparable to our
     YOLO `geo` runs: degrees=10, translate=0.1, scale=[0.5,1.5], fliplr=0.5, gray
     (114) border fill, NO shear/perspective/photometric (X-ray intensity is
-    diagnostic; upright pose). `hflip` = flip only; `off` = none/eval."""
+    diagnostic; upright pose). `hflip` = flip only; `off` = none/eval.
+
+    `mosaic` / `mosaic_mixup` get the SAME affine — they are `geo` plus a
+    Dataset-level composite step, exactly as YOLO's aug.py builds them
+    (`{**_GEO, "mosaic": 1.0, ...}`). See the mosaic block below.
+
+    ⚠ `translate_div` exists only for the mosaic path. v2.RandomAffine takes
+    `translate` as a FRACTION OF THE INPUT, and the mosaic path feeds it a 2S canvas
+    that is then cropped back to S. At translate=0.1 that would shift by 0.1*2S =
+    twice the intended pixels, so mosaic would silently run a stronger geometry than
+    `geo` and the two would no longer be one-knob comparable. Passing 2.0 restores
+    0.1*S. Defaults to 1.0, so the `geo` path is untouched."""
     from torchvision.transforms import v2
     if aug == "off":
         return None
     ops = []
-    if aug == "geo":
-        ops.append(v2.RandomAffine(degrees=10, translate=(0.1, 0.1),
+    if aug in _GEO_AUGS:
+        ops.append(v2.RandomAffine(degrees=10,
+                                   translate=(0.1 / translate_div, 0.1 / translate_div),
                                    scale=(0.5, 1.5), fill=114))       # == YOLO _GEO
     ops.append(v2.RandomHorizontalFlip(p=0.5))                        # fliplr=0.5
     ops += [v2.ClampBoundingBoxes(), v2.SanitizeBoundingBoxes()]      # drop boxes warped out
     return v2.Compose(ops)
+
+
+# ── mosaic / mixup ────────────────────────────────────────────────────────────
+# ⚠ MOSAIC CANNOT BE A v2 TRANSFORM. A torchvision v2 op sees ONE sample; mosaic
+# needs FOUR. So it lives in the Dataset. mixup alone could have gone in _build_aug,
+# but it is kept here so the two read as one recipe and share _sample().
+#
+# WHY THIS EXISTS (2026-08-03). Every torchvision run on this arm is aug='geo' —
+# there has never been an augmentation ablation here, while on the YOLO arm
+# mosaic_mixup beat geo 0.734 vs 0.682 in COCO units (+0.052): the largest single
+# lever that arm found, and ~2x the ±0.025 significance bar. With the initialisation
+# axis closed (four pretraining chains all landing at 0.754 ±0.013), augmentation is
+# one of the three levers left.
+#
+# ⚠⚠ ORDER IS LOAD-BEARING: CANVAS → AFFINE → CROP. Ultralytics fuses the two with
+# random_perspective(border=-imgsz//2): the warp runs on the 2S canvas and its OUTPUT
+# is the central S window. Doing it the other way round (crop to S, then affine) is
+# the obvious implementation and it is WRONG — measured 2026-08-03, and visible at a
+# glance in a rendered grid. At the scale=0.5 end of the affine the already-cropped
+# 512 tile shrinks to ~256 centred in a 512 frame and the rest fills with grey 114:
+# roughly a quarter of the sample is padding, and every lesion in it is half-size.
+# That is precisely the small-box damage the crop exists to prevent. Warping the 2S
+# canvas first means scale<1 pulls MORE chest into frame instead of padding it.
+#
+# ⚠ THE CROP MUST HAPPEN IN THE DATASET, and this is the trap. build_model pins
+# min_size == max_size == imgsz, so GeneralizedRCNNTransform resizes whatever it is
+# handed down to 512. Returning the 1024 canvas would therefore shrink every chest to
+# 256 and halve every lesion — silently attacking small-box recall, already this
+# arm's weakest bucket. Cropping back to S keeps lesions at native scale.
+#
+# ⚠ STILL NOT A BIT-EXACT PORT. Ultralytics warps with a single fused perspective
+# matrix and filters candidates inside it; here the affine is torchvision's v2 op and
+# the candidate filter runs after the crop. `mosaic` is therefore comparable to `geo`
+# HERE — do not read it as reproducing YOLO's mosaic cell.
+#
+# ⚠ NO close_mosaic. YOLO's champion disabled mosaic for its last 10 epochs so
+# training ends on real images. That needs an epoch-aware Dataset, i.e. a change to
+# train() — deliberately NOT made while the freeze ladder is running on this file.
+# Recipe difference vs the champion, stated rather than hidden.
+_MOSAIC_WH_THR = 2.0      # drop a cropped box thinner/shorter than this many px...
+_MOSAIC_AREA_THR = 0.10   # ...or with under 10% of its original area left. These are
+                          # Ultralytics' box_candidates defaults, and they are
+                          # load-bearing: without them a 2-px sliver of a lesion at a
+                          # crop edge becomes a full-confidence GT box. That is pure
+                          # label noise injected exactly into the small-box regime.
+_MIXUP_P = 0.10           # == the champion's `mixup: 0.1`
+_MIXUP_BETA = 32.0        # Beta(32,32) ≈ 0.5 ± 0.06 — a true double exposure, not a
+                          # near-copy of one image with a ghost of the other.
 
 
 class TBDetDataset:
@@ -91,42 +190,155 @@ class TBDetDataset:
 
     target = {"boxes": FloatTensor[N,4] xyxy pixel, "labels": Int64[N] in 1..2}.
     YOLO class 0/1 (Active/Obsolete) → torchvision label +1 (0 = background).
-    Train aug is box-aware via _build_aug (see it for the YOLO-`geo` match).
+    Train aug is box-aware via _build_aug (see it for the YOLO-`geo` match);
+    `mosaic`/`mosaic_mixup` additionally compose samples here (see the block above).
     """
 
     def __init__(self, stems: list[str], train: bool, aug: str = "geo"):
         self.stems = list(stems)
         self.train = train
         self.aug = aug
-        self.tf = _build_aug(aug) if train else None
+        # Gated on `train` too: recalibrate_backbone_bn() and every eval path build
+        # this with train=False, and a BN re-estimate must see REAL images.
+        self.mosaic = bool(train) and aug in ("mosaic", "mosaic_mixup")
+        self.mixup = bool(train) and aug == "mosaic_mixup"
+        # The affine runs on the 2S mosaic canvas, so its translate fraction is
+        # halved to keep the pixel shift equal to the `geo` runs' — see _build_aug.
+        self.tf = _build_aug(aug, translate_div=2.0 if self.mosaic else 1.0) \
+            if train else None
 
     def __len__(self):
         return len(self.stems)
 
-    def __getitem__(self, i):
+    def _load_raw(self, i):
+        """(uint8 CHW image, boxes xyxy float32 [N,4], labels int64 [N]) — NO aug.
+
+        Split out of __getitem__ so mosaic can pull SIBLING samples; that is the
+        whole reason mosaic cannot be a v2 transform."""
         import torch
         from torchvision.io import read_image, ImageReadMode
-        from torchvision import tv_tensors
 
         stem = self.stems[i]
         img = read_image(str(splits.tb_image_path(stem)), ImageReadMode.RGB)   # uint8 [3,H,W]
         _, h, w = img.shape
-
         boxes, labels = [], []
         for cls, (x1, y1, x2, y2) in metrics._gt_boxes(splits.label_path(stem), w, h):
             if x2 > x1 and y2 > y1:
                 boxes.append([x1, y1, x2, y2])
-                labels.append(cls + 1)                              # +1: 0 = background
-        boxes_t = torch.tensor(boxes, dtype=torch.float32).reshape(-1, 4)
-        labels_t = torch.tensor(labels, dtype=torch.int64)
+                labels.append(_fg(cls) + 1)                         # +1: 0 = background
+        return (img,
+                torch.tensor(boxes, dtype=torch.float32).reshape(-1, 4),
+                torch.tensor(labels, dtype=torch.int64))
 
-        if self.tf is not None and len(boxes):
+    @staticmethod
+    def _crop_boxes(boxes, labels, x0, y0, w, h, area0):
+        """Shift boxes into the crop window, clip to it, then apply the
+        box_candidates filter (see _MOSAIC_WH_THR / _MOSAIC_AREA_THR)."""
+        if not len(boxes):
+            return boxes, labels
+        b = boxes.clone()
+        b[:, 0::2] = (b[:, 0::2] - x0).clamp(0, w)
+        b[:, 1::2] = (b[:, 1::2] - y0).clamp(0, h)
+        bw, bh = b[:, 2] - b[:, 0], b[:, 3] - b[:, 1]
+        keep = ((bw > _MOSAIC_WH_THR) & (bh > _MOSAIC_WH_THR)
+                & ((bw * bh) / area0.clamp(min=1e-6) > _MOSAIC_AREA_THR))
+        return b[keep], labels[keep]
+
+    def _mosaic_canvas(self, i):
+        """Ultralytics' mosaic4 layout: a 2S canvas with a JITTERED join point, four
+        chests butted against it, each clipped by the canvas edge, boxes offset to
+        match. Returns the 2S canvas — the affine runs on THIS and _sample crops the
+        central S window afterwards (see the block comment: that order is the point).
+
+        Randomness lives in the join point, exactly as upstream, so the crop itself is
+        deterministic. Tile size comes from the PRIMARY image (every TBX11K image is
+        512x512), so this needs no imgsz argument and cannot drift from --imgsz.
+        """
+        import torch
+
+        img0, b0, l0 = self._load_raw(i)
+        _, H, W = img0.shape
+        cy = random.randint(H // 2, 3 * H // 2)         # the join point; Ultralytics'
+        cx = random.randint(W // 2, 3 * W // 2)         # uniform(-border, 2s+border)
+        canvas = torch.full((3, 2 * H, 2 * W), 114, dtype=img0.dtype)   # == the affine fill
+        boxes, labels = [], []
+        idxs = [i] + [random.randrange(len(self.stems)) for _ in range(3)]
+        for k, j in enumerate(idxs):
+            img, bb, ll = (img0, b0, l0) if k == 0 else self._load_raw(j)
+            h, w = img.shape[1], img.shape[2]
+            if k == 0:                                  # top-left: its BR corner at (cx,cy)
+                xa1, ya1, xa2, ya2 = max(cx - w, 0), max(cy - h, 0), cx, cy
+                xb1, yb1 = w - (xa2 - xa1), h - (ya2 - ya1)
+            elif k == 1:                                # top-right: its BL corner
+                xa1, ya1, xa2, ya2 = cx, max(cy - h, 0), min(cx + w, 2 * W), cy
+                xb1, yb1 = 0, h - (ya2 - ya1)
+            elif k == 2:                                # bottom-left: its TR corner
+                xa1, ya1, xa2, ya2 = max(cx - w, 0), cy, cx, min(cy + h, 2 * H)
+                xb1, yb1 = w - (xa2 - xa1), 0
+            else:                                       # bottom-right: its TL corner
+                xa1, ya1, xa2, ya2 = cx, cy, min(cx + w, 2 * W), min(cy + h, 2 * H)
+                xb1, yb1 = 0, 0
+            canvas[:, ya1:ya2, xa1:xa2] = img[:, yb1:yb1 + (ya2 - ya1),
+                                              xb1:xb1 + (xa2 - xa1)]
+            if len(bb):
+                bb = bb.clone()
+                bb[:, 0::2] += xa1 - xb1                # padw
+                bb[:, 1::2] += ya1 - yb1                # padh
+                boxes.append(bb)
+                labels.append(ll)
+        if not boxes:                                   # cannot happen on positives-only
+            return img0, b0, l0
+        boxes, labels = torch.cat(boxes), torch.cat(labels)
+        # A tile clipped by the canvas edge takes part of its lesion with it — same
+        # filter as the final crop, so a sliver never survives as a full-weight GT box.
+        area0 = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+        boxes, labels = self._crop_boxes(boxes, labels, 0, 0, 2 * W, 2 * H, area0)
+        return canvas, boxes, labels
+
+    def _sample(self, i):
+        """One fully-augmented sample: (float[0..1] CHW, boxes, labels).
+
+        mosaic path: 2S canvas → affine/flip → central S crop. Plain path: image →
+        affine/flip. mixup composes TWO of these, which is why it is a separate step
+        in __getitem__."""
+        import torch
+        from torchvision import tv_tensors
+
+        img, boxes_t, labels_t = (self._mosaic_canvas(i) if self.mosaic
+                                  else self._load_raw(i))
+        _, h, w = img.shape
+        if self.tf is not None and len(boxes_t):
             bb = tv_tensors.BoundingBoxes(boxes_t, format="XYXY", canvas_size=(h, w))
             img, out = self.tf(tv_tensors.Image(img), {"boxes": bb, "labels": labels_t})
             boxes_t = out["boxes"].as_subclass(torch.Tensor).float().reshape(-1, 4)
             labels_t = out["labels"].as_subclass(torch.Tensor)
+        if self.mosaic:
+            # Central S window of the WARPED 2S canvas == Ultralytics' border=-S//2.
+            # An empty result is fine and is upstream's behaviour too: RetinaNet reads
+            # a zero-box target as a pure-background sample (verified — finite loss).
+            y0, x0 = h // 4, w // 4
+            area0 = ((boxes_t[:, 2] - boxes_t[:, 0]) * (boxes_t[:, 3] - boxes_t[:, 1])
+                     if len(boxes_t) else None)
+            img = img[:, y0:y0 + h // 2, x0:x0 + w // 2]
+            boxes_t, labels_t = self._crop_boxes(boxes_t, labels_t, x0, y0,
+                                                 w // 2, h // 2, area0)
+        return img.as_subclass(torch.Tensor).float() / 255.0, boxes_t, labels_t
 
-        img = img.as_subclass(torch.Tensor).float() / 255.0
+    def __getitem__(self, i):
+        import torch
+
+        img, boxes_t, labels_t = self._sample(i)
+        if self.mixup and random.random() < _MIXUP_P:
+            # Double exposure of two (mosaic) chests. Boxes are CONCATENATED, not
+            # blended: both sets of lesions are genuinely present in the pixels, at
+            # reduced contrast. That is the entire regularisation — the detector must
+            # fire on a lesion it can only half see.
+            img2, b2, l2 = self._sample(random.randrange(len(self.stems)))
+            if img2.shape == img.shape:
+                lam = float(np.random.beta(_MIXUP_BETA, _MIXUP_BETA))
+                img = lam * img + (1.0 - lam) * img2
+                boxes_t = torch.cat([boxes_t, b2])
+                labels_t = torch.cat([labels_t, l2])
         target = {"boxes": boxes_t, "labels": labels_t, "image_id": torch.tensor([i])}
         return img, target
 
@@ -216,11 +428,30 @@ def load_backbone_weights(model, path) -> dict:
     print(f"[backbone] {Path(path).name} [{fmt}] → {scope}: {matched} tensors loaded, "
           f"{len(missing)} missing, {len(unexpected)} unexpected, "
           f"L2-vs-COCO(weights) {drift:.3f} ✓")
+    # ⚠ ECHO THE UPSTREAM RUN'S CONFIG. A pretraining rung's settings are otherwise
+    # invisible here, and two checkpoints that differ on one knob look identical at the
+    # load line. That is exactly how vindr_retinanet_best.pt (BN recalibrated on 50
+    # batches) and vindr_retinanet_cocoinit_best.pt (never recalibrated) were paired.
+    # Printed at load so the mismatch is on screen BEFORE the GPU hours are spent.
+    vm = rep.get("vindr_meta") or {}
+    up = vm.get("config")
+    if up:
+        keys = ("bn_recalib", "freeze_bn", "imgsz", "batch", "accum", "lr", "epochs", "seed")
+        print("[backbone]   upstream config: "
+              + "  ".join(f"{k}={up.get(k)}" for k in keys if k in up))
+        if vm.get("bn_recalib_images") is not None:
+            print(f"[backbone]   upstream bn_recalib_images={vm['bn_recalib_images']} "
+                  f"(0 => that rung did NOT re-estimate BN; check the paired run matches)")
+    elif fmt == "torchvision_detector":
+        print("[backbone]   ⚠ no upstream `config` in this checkpoint — it predates the "
+              "provenance fix (2026-08-02). Verify the paired run's settings by hand: "
+              "backbone.body.bn1.num_batches_tracked == 864384 means BN was NEVER "
+              "recalibrated (that is the stock torchvision value).")
     return rep
 
 
 def build_model(arch: str, imgsz: int, score_thresh: float = 0.001, pretrained: bool = True,
-                backbone_weights=None, trainable_layers=None):
+                backbone_weights=None, trainable_layers=None, num_fg_classes: int | None = None):
     """COCO-pretrained RetinaNet / Faster R-CNN, head rebuilt for our 2 classes.
     min_size == max_size == imgsz so inputs stay at 512 (matches YOLO, fits 6 GB).
     A low score_thresh keeps the full PR curve for AP.
@@ -257,7 +488,11 @@ def build_model(arch: str, imgsz: int, score_thresh: float = 0.001, pretrained: 
         retinanet_resnet50_fpn_v2, RetinaNet_ResNet50_FPN_V2_Weights,
         fasterrcnn_resnet50_fpn_v2, FasterRCNN_ResNet50_FPN_V2_Weights)
 
-    num_classes = S.NUM_CLASSES + 1                                 # + background
+    # num_fg_classes=None follows the SINGLE_CLASS module flag (the training path).
+    # load_model passes it EXPLICITLY, inferred from the checkpoint, so an external
+    # scorer can load a single-class run without setting the global first.
+    n_fg = num_fg_classes if num_fg_classes is not None else (1 if SINGLE_CLASS else S.NUM_CLASSES)
+    num_classes = n_fg + 1                                          # + background
     common = dict(min_size=imgsz, max_size=imgsz)
     if trainable_layers is not None:
         if not 0 <= int(trainable_layers) <= 5:
@@ -363,22 +598,26 @@ def ap_from_per_image(per_image, iou50_95=True) -> dict:
                 "mAP50_95": round(float(np.mean(aps)), 4),
                 "precision": round(p, 4), "recall": round(rec, 4)}, ap50
 
-    active, ap_a = cls_block(0)
-    obsolete, ap_o = cls_block(1)
-    present = [a for a in (ap_a, ap_o) if a is not None]
+    keys = class_keys()
+    blocks, aps = {}, []
+    for i, name in enumerate(keys):
+        blk, ap = cls_block(i)
+        blocks[name] = blk
+        aps.append(ap)
+    present = [a for a in aps if a is not None]
     overall_map50 = round(float(np.mean(present)), 4) if present else 0.0
     overall = {
         "mAP50": overall_map50,
-        "mAP50_95": round(float(np.mean([active["mAP50_95"], obsolete["mAP50_95"]])), 4),
-        "precision": round(float(np.mean([active["precision"], obsolete["precision"]])), 4),
-        "recall": round(float(np.mean([active["recall"], obsolete["recall"]])), 4),
+        "mAP50_95": round(float(np.mean([b["mAP50_95"] for b in blocks.values()])), 4),
+        "precision": round(float(np.mean([b["precision"] for b in blocks.values()])), 4),
+        "recall": round(float(np.mean([b["recall"] for b in blocks.values()])), 4),
     }
-    return {"overall": overall, "active": active, "obsolete": obsolete}
+    return {"overall": overall, **blocks}
 
 
 # ── inference → per-image dicts (mirrors metrics.collect for torchvision) ──────
 def infer_per_image(model, items, device, conf_floor=S.RECALL_CEILING_CONF,
-                    batch: int = 1) -> list[dict]:
+                    batch: int = 1, single_class: bool | None = None) -> list[dict]:
     """Per-image {group, gts, preds} dicts for a torchvision detector.
 
     ⚠ `batch` DEFAULTS TO 1, AND REPORTED NUMBERS MUST KEEP IT THERE. Measured
@@ -410,6 +649,9 @@ def infer_per_image(model, items, device, conf_floor=S.RECALL_CEILING_CONF,
     import torch
     from torchvision.io import read_image, ImageReadMode
 
+    # Per-MODEL, not global: ap_compare scores single-class and 2-class checkpoints in
+    # one pass, so the GT treatment has to follow the checkpoint being scored.
+    merge_gt = SINGLE_CLASS if single_class is None else single_class
     model.eval()
     per_image = []
     with torch.no_grad():
@@ -429,9 +671,20 @@ def infer_per_image(model, items, device, conf_floor=S.RECALL_CEILING_CONF,
                 preds = [(int(l) - 1, float(s),
                           (float(b[0]), float(b[1]), float(b[2]), float(b[3])))
                          for b, s, l in zip(boxes, scores, labels) if s >= conf_floor]
+                gts = metrics._gt_boxes(label_path, w, h)
+                if merge_gt:
+                    # The label files on disk stay 2-class; merge the EVAL ground
+                    # truth too, or the 37 sealed Obsolete boxes silently leave the
+                    # denominator and lesion recall is scored against 142 not 179.
+                    # ⚠ Merge to 0 DIRECTLY — do not route this through _fg(), which
+                    # reads the SINGLE_CLASS *global*. An external scorer (ap_compare)
+                    # never sets that global, so _fg() returned c unchanged and this
+                    # whole branch was a silent no-op that produced plausible-looking
+                    # but wrong AP. merge_gt is already the decision; honour it here.
+                    gts = [(0, b) for _c, b in gts]
                 per_image.append({
                     "group": group,
-                    "gts": metrics._gt_boxes(label_path, w, h),
+                    "gts": gts,
                     "preds": preds,
                 })
     return per_image
@@ -444,10 +697,11 @@ def evaluate_tv(model, split, items, device) -> dict:
     per_image = infer_per_image(model, items, device)
     return {
         "detection": ap_from_per_image(per_image),
-        "localization": metrics.localization(per_image),
+        "localization": metrics.localization(per_image, class_keys=class_keys()),
         "screening": metrics.screening(per_image, list(S.CONF_THRESHOLDS) + [S.RECALL_CEILING_CONF]),
         "by_size": metrics.by_size(per_image),
-        "confusion_matrix": metrics.confusion_matrix(per_image),
+        "confusion_matrix": metrics.confusion_matrix(
+            per_image, class_names=["Lesion"] if SINGLE_CLASS else None),
     }
 
 
@@ -459,7 +713,7 @@ def _val_active_map50(model, val_stems, device) -> float:
     stays at batch=1 so the headline reproduces exactly."""
     items = [(splits.tb_image_path(s), splits.label_path(s), "tb") for s in val_stems]
     per_image = infer_per_image(model, items, device, batch=8)
-    return ap_from_per_image(per_image, iou50_95=False)["active"]["mAP50"]
+    return ap_from_per_image(per_image, iou50_95=False)[headline_key()]["mAP50"]
 
 
 def freeze_backbone_bn(model) -> int:
@@ -536,6 +790,7 @@ def recalibrate_backbone_bn(model, stems, imgsz, device, n_batches=50, batch=4) 
     bns = [m for m in model.backbone.modules() if isinstance(m, nn.BatchNorm2d)]
     if not bns:
         return 0
+    saved_momentum = [m.momentum for m in bns]   # restored below — see the note at the end
     for m in bns:                      # reset so old-resolution stats do not linger
         m.reset_running_stats()
         m.momentum = None              # None => cumulative average over the pass
@@ -553,15 +808,58 @@ def recalibrate_backbone_bn(model, stems, imgsz, device, n_batches=50, batch=4) 
             model.backbone(x.tensors)
             seen += len(imgs)
     model.train(was_training)
+    # ⚠ RESTORE momentum. `momentum=None` means "cumulative average over everything seen
+    # since the last reset", which is right for THIS pass and wrong for training: left in
+    # place, every subsequent forward would be folded into the same running average with
+    # weight 1/n, so the statistics would ossify as n grows. Harmless while freeze_bn is
+    # on (BN sits in eval mode and never updates), which is why it went unnoticed — but
+    # it silently changes the meaning of --bn-recalib WITHOUT --freeze-bn.
+    for m, mom in zip(bns, saved_momentum):
+        m.momentum = mom
     print(f"[bn] recalibrated {len(bns)} backbone BatchNorm layers on {seen} images "
           f"@ imgsz={imgsz} through model.transform (ImageNet-normalised, as training "
           f"feeds it — see recalibrate_backbone_bn)")
     return seen
 
 
+# ── divergence guards ────────────────────────────────────────────────────────
+# WHY THESE EXIST (retinanet_cocovindr_s0, 2026-08-02). Its loss went non-finite in
+# epoch 2 and the run then trained 31 more epochs, saved best.pt, ran the sealed eval
+# and wrote a metrics.json reading "Active mAP50 = 0.005" — shaped exactly like a real
+# cell of the 2x2 it belonged to. Nothing flagged it. Proof it learned nothing: the
+# weight L2 of best.pt (ep2) and last.pt (ep32) differ in the SIXTH significant digit
+# (490.247 vs 490.248) while every parameter stayed finite. That is the GradScaler
+# death spiral: non-finite grads -> scaler.step() skipped -> scale halved -> repeat
+# until the scale is subnormal, after which every gradient underflows to zero and the
+# model is frozen while the loop reports it as "training". scaler.update() only grows
+# the scale back after 2000 CONSECUTIVE clean steps, which never arrive.
+#
+# load_backbone_weights() already halts on a non-finite backbone. There was no matching
+# guard on a non-finite LOSS, so the arm's cheapest failure mode was also its quietest.
+# ⚠ CLIPPING IS OFF BY DEFAULT, AND THAT IS DELIBERATE — do not "turn it on for safety".
+# Measured on a smoke run at norm 10.0: it bound on 7 of 16 optimizer steps. So it is
+# NOT a no-op on healthy training — it changes the optimisation path. Every recorded
+# number in this arm (0.7563 / 0.7475 / 0.5911 / 0.6857) was produced WITHOUT it, and
+# the runs those numbers must be compared against are the ones being launched now.
+# Enabling it by default would fix one asymmetry by introducing another, which is the
+# exact mistake this whole session exists to undo.
+#
+# The NaN guard below is the real protection and it is safe to make unconditional,
+# because it only ever acts on values that are already non-finite: a healthy run is
+# bit-identical with or without it. Clipping PREVENTS divergence (a modelling choice);
+# the guard DETECTS it (a safety property). Only the second belongs in a default.
+# Turn clipping on deliberately, for a run that is diverging, via GRAD_CLIP_NORM=10.
+GRAD_CLIP_NORM = float(os.environ.get("GRAD_CLIP_NORM", "0"))   # 0 = off
+_NAN_EPOCH_FRAC = 0.25    # halt if >=25% of an epoch's batches are non-finite. Below
+                          # this, skip the batch and continue: a one-off bad batch must
+                          # not kill a 2-hour run, but a death spiral must not survive
+                          # one epoch.
+
+
 def train(arch, train_stems, val_stems, *, imgsz, epochs, batch, lr, device, aug,
           workers, out_dir, accum=8, patience=30, backbone_weights=None,
-          freeze_bn=False, bn_recalib=0, trainable_layers=None) -> dict:
+          freeze_bn=False, bn_recalib=0, trainable_layers=None,
+          warmup_steps=0, amp_dtype="fp16") -> dict:
     """SGD + warmup + cosine LR, gradient accumulation to a real effective batch,
     best-by-val-Active-mAP50 with early stopping (like YOLO's patience).
 
@@ -575,8 +873,19 @@ def train(arch, train_stems, val_stems, *, imgsz, epochs, batch, lr, device, aug
     model = build_model(arch, imgsz, backbone_weights=backbone_weights,
                         trainable_layers=trainable_layers).to(device)
     # Order matters: recalibrate BEFORE freezing, or we freeze the stale stats.
-    if bn_recalib and backbone_weights:
-        recalibrate_backbone_bn(model, train_stems, imgsz, device, n_batches=bn_recalib)
+    # ⚠ NOT gated on `backbone_weights` (fixed 2026-08-02). It used to be, which meant a
+    # COCO-init run SILENTLY IGNORED --bn-recalib: the flag was accepted and discarded.
+    # That made every COCO-vs-BYOL pair unmatched on BN adaptation, and it is fatal at
+    # --trainable-layers 0, where the trunk is frozen so BN re-estimation is the ONLY way
+    # the trunk can adapt to the target domain — the control was denied the sole
+    # adaptation mechanism available to it while the BYOL arm received it. Proven from
+    # the run logs: byol_tl0_s0 printed "[bn] recalibrated 53 ...", cocoinit_tl0_s0 did
+    # not. If the stats are about to be FROZEN for a whole run they must be estimated on
+    # the data about to be trained on, whatever the init, or the control is handicapped.
+    bn_recalib_ran = 0
+    if bn_recalib:
+        bn_recalib_ran = recalibrate_backbone_bn(model, train_stems, imgsz, device,
+                                                 n_batches=bn_recalib)
     n_bn = freeze_backbone_bn(model) if freeze_bn else 0
     if freeze_bn:
         print(f"[bn] froze {n_bn} backbone BatchNorm2d layers (running stats kept, "
@@ -602,11 +911,46 @@ def train(arch, train_stems, val_stems, *, imgsz, epochs, batch, lr, device, aug
                                         pin_memory=(device.type == "cuda"))
     params = [p for p in model.parameters() if p.requires_grad]
     opt = torch.optim.SGD(params, lr=lr, momentum=0.9, weight_decay=5e-4)
-    use_amp = device.type == "cuda"
-    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
+    # ⚠ AMP DTYPE IS LOAD-BEARING ON THIS ARM — see the mosaic NaN diagnosis
+    # (2026-08-05). fp16 tops out at 65504, and with --freeze-bn the trunk has NO
+    # renormalisation left (all 53 body BatchNorms are eval-mode with frozen affine),
+    # so any conv-weight growth in layer3/layer4 propagates multiplicatively into the
+    # FPN and heads. Measured on the crashed run's ep2 checkpoint: peak activation
+    # 107062 = 163% of the fp16 ceiling while the SAME forward in fp32 gives a healthy
+    # loss of 1.37. That inf is what the NaN guard was catching.
+    # bf16 has fp32's exponent range (~3.4e38), so the cliff disappears; it needs no
+    # GradScaler. Ampere (the 3050) supports it natively. Default stays fp16 so every
+    # recorded run reproduces.
+    use_amp = device.type == "cuda" and amp_dtype != "off"
+    _AMP_DT = {"fp16": torch.float16, "bf16": torch.bfloat16}
+    amp_torch_dtype = _AMP_DT.get(amp_dtype, torch.float16)
+    # GradScaler exists to keep fp16 GRADIENTS off the underflow floor. bf16 gradients
+    # have fp32 range, so scaling is unnecessary — and an enabled scaler would add the
+    # skip-step/halve-scale death-spiral path for no benefit.
+    scaler = torch.amp.GradScaler("cuda", enabled=(use_amp and amp_torch_dtype is torch.float16))
+    if device.type == "cuda":
+        print(f"[amp] autocast={amp_dtype}"
+              + ("" if amp_dtype == "off" else
+                 f" (grad_scaler={'on' if scaler.is_enabled() else 'off'})"))
 
     steps = len(dl_tr)
-    warm_iters = min(500, steps) if steps > 1 else 0          # ~1 epoch (or 500 iters) warmup
+    # ⚠⚠ WARMUP IS COUNTED IN OPTIMIZER STEPS, NOT DATALOADER ITERATIONS.
+    # The old line was `warm_iters = min(500, steps)` compared against `gstep`, which
+    # ticks once per MICRO-batch. `steps` is micro-batches per epoch (70 at batch 8,
+    # 280 at batch 2), so the min() never selected 500 and the warmup was always
+    # exactly one epoch = steps/accum = **35 optimizer steps**, at both batch sizes.
+    # That formula is torchvision's reference recipe (`min(1000, len(data_loader)-1)`),
+    # but it is a COCO-SIZED-EPOCH heuristic: on 118k images one epoch is thousands of
+    # steps, on our 559 it is 35. So we were reaching lr=0.01 at effective batch 16 in
+    # 35 steps where detectron2's RetinaNet R50-FPN recipe — same lr, same effective
+    # batch — takes 1000. That is the divergence trigger: `geo` survives it, mosaic
+    # does not, and which runs die is stochastic because this arm never seeds.
+    # warmup_steps=0 keeps the legacy behaviour so the existing board reproduces.
+    warm_iters = (warmup_steps * accum) if warmup_steps else (min(500, steps) if steps > 1 else 0)
+    warm_opt_steps = warm_iters // max(1, accum)
+    print(f"[sched] lr={lr} eff_batch={batch * accum}  warmup={warm_opt_steps} optimizer "
+          f"steps (~{warm_opt_steps * accum / max(1, steps):.1f} epochs)"
+          + ("  [legacy: one epoch of micro-batches]" if not warmup_steps else ""))
     best_map, best_ep, since = -1.0, -1, 0
     best_pt, last_pt = out_dir / "best.pt", out_dir / "last.pt"
     eff_batch = batch * accum
@@ -621,6 +965,11 @@ def train(arch, train_stems, val_stems, *, imgsz, epochs, batch, lr, device, aug
     # OOMs, or hits a reboot still leaves everything it had measured.
     history, hist_path = [], out_dir / "history.jsonl"
     hist_path.unlink(missing_ok=True)
+    nan_batches = 0                       # cumulative, reported in metrics.json
+    clipped_steps, opt_steps = 0, 0       # did GRAD_CLIP_NORM ever bind? see below
+    empty_groups = 0                      # accumulation groups that lost EVERY batch to
+                                          # the NaN guard, so no step was taken
+    micro = 0                             # finite batches accumulated in the open group
     for ep in range(epochs):
         cos_lr = 0.5 * lr * (1 + math.cos(math.pi * ep / max(1, epochs)))   # cosine per epoch
         model.train()
@@ -628,28 +977,84 @@ def train(arch, train_stems, val_stems, *, imgsz, epochs, batch, lr, device, aug
             freeze_backbone_bn(model)   # model.train() re-enables BN — re-freeze every epoch
         opt.zero_grad()
         run_loss, nb, t0 = 0.0, 0, time.time()
+        n_nan = 0
         for it, (imgs, targets) in enumerate(dl_tr):
             cur_lr = lr * (0.01 + 0.99 * gstep / max(1, warm_iters)) if gstep < warm_iters else cos_lr
             for g in opt.param_groups:
                 g["lr"] = cur_lr
             imgs = [im.to(device) for im in imgs]
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-            with torch.amp.autocast("cuda", enabled=use_amp):
+            with torch.amp.autocast("cuda", enabled=use_amp, dtype=amp_torch_dtype):
                 loss = sum(model(imgs, targets).values()) / accum
-            scaler.scale(loss).backward()
+            # ⚠ NaN GUARD — see the block comment above `_NAN_EPOCH_FRAC`.
+            # ⚠⚠ THE SKIP MUST NOT SKIP THE ACCUMULATION BOUNDARY (fixed 2026-08-04).
+            # This used to be `continue`, which jumped past the whole block below —
+            # including `opt.zero_grad()`. So whenever a non-finite batch happened to
+            # land ON a boundary, the group's partial gradient was never cleared: the
+            # next group accumulated on TOP of it and stepped with ~2x the gradient
+            # while still dividing by `accum`. That is a positive feedback loop —
+            # a skip inflates the next step, the inflated step causes more skips — and
+            # it is what turned the mosaic runs' first NaN into 20.7% -> 100% of an
+            # epoch in one epoch. Now: never backward a poisoned batch, but ALWAYS
+            # close the group.
+            # ✅ Provably a no-op for every number already on the board: the branch is
+            # dead unless a batch is non-finite, and all 13 aug='geo' runs recorded
+            # nan_batches_skipped == 0. Healthy runs take the identical path.
+            lv = float(loss.item())
+            finite = math.isfinite(lv)
+            if finite:
+                scaler.scale(loss).backward()
+                micro += 1                    # this group has a real gradient in it
+            else:
+                n_nan += 1
+                nan_batches += 1              # no backward: keep the poison out of .grad
             if (it + 1) % accum == 0 or (it + 1) == steps:         # step every `accum` batches
-                scaler.step(opt)
-                scaler.update()
-                opt.zero_grad()
-            run_loss += float(loss.item()) * accum
-            nb += 1
+                # Clip on UNSCALED grads. Without this a single exploding batch produces
+                # inf grads, GradScaler skips the step and halves the scale, and if that
+                # recurs the scale decays to subnormal — every later gradient underflows
+                # to zero and the model is frozen while training "continues". That is
+                # exactly how retinanet_cocovindr_s0 burned 31 epochs (2026-08-02).
+                if micro:                     # nothing accumulated => nothing to step on
+                    if GRAD_CLIP_NORM > 0:
+                        # Count how often the clip actually BINDS, so "was this run
+                        # comparable to the earlier arm?" is answerable from metrics.json
+                        # instead of assumed. See the note on GRAD_CLIP_NORM.
+                        scaler.unscale_(opt)
+                        total_norm = torch.nn.utils.clip_grad_norm_(params, GRAD_CLIP_NORM)
+                        if float(total_norm) > GRAD_CLIP_NORM:
+                            clipped_steps += 1
+                    scaler.step(opt)
+                    scaler.update()
+                    opt_steps += 1
+                else:
+                    empty_groups += 1
+                opt.zero_grad()               # ALWAYS: never carry a partial group over
+                micro = 0
+            if finite:
+                run_loss += lv * accum
+                nb += 1
             gstep += 1
+        if n_nan:
+            frac = n_nan / max(1, steps)
+            print(f"[nan] ⚠ {n_nan}/{steps} batches ({frac:.1%}) had a non-finite loss "
+                  f"this epoch and were SKIPPED.", flush=True)
+            if frac >= _NAN_EPOCH_FRAC:
+                raise SystemExit(
+                    f"HALT: {frac:.1%} of epoch {ep+1}'s batches produced a non-finite "
+                    f"loss (threshold {_NAN_EPOCH_FRAC:.0%}). Training has diverged — "
+                    f"refusing to burn GPU hours on a model that cannot learn, and "
+                    f"refusing to emit a metrics.json that would look like a real result. "
+                    f"Check the backbone init's BN statistics, then lower --lr.")
         vmap = _val_active_map50(model, val_stems, device)
-        torch.save({"arch": arch, "imgsz": imgsz, "state_dict": model.state_dict()}, last_pt)
+        torch.save({"arch": arch, "imgsz": imgsz, "single_class": SINGLE_CLASS,
+                    "num_fg_classes": 1 if SINGLE_CLASS else S.NUM_CLASSES,
+                    "state_dict": model.state_dict()},last_pt)
         flag = ""
         if vmap > best_map:
             best_map, best_ep, since = vmap, ep, 0
-            torch.save({"arch": arch, "imgsz": imgsz, "state_dict": model.state_dict()}, best_pt)
+            torch.save({"arch": arch, "imgsz": imgsz, "single_class": SINGLE_CLASS,
+                    "num_fg_classes": 1 if SINGLE_CLASS else S.NUM_CLASSES,
+                    "state_dict": model.state_dict()},best_pt)
             flag = "  ← best"
         else:
             since += 1
@@ -674,14 +1079,52 @@ def train(arch, train_stems, val_stems, *, imgsz, epochs, batch, lr, device, aug
             "batch": batch, "accum": accum, "eff_batch": eff_batch, "lr": lr,
             "backbone_init": getattr(model, "_backbone_init", None),
             "backbone_bn_frozen": n_bn,
+            # ⚠ PERSIST THE BN KNOB. It was previously recorded NOWHERE — the only trace
+            # that recalibration ran was a stdout line that is simply absent when it
+            # does not, so "did the control get the same treatment?" was unanswerable
+            # from metrics.json. That is how the COCO/BYOL pairs stayed unmatched for a
+            # day. `bn_recalib_images` is what ACTUALLY happened, not what was asked for.
+            "bn_recalib_requested": bn_recalib, "bn_recalib_images": bn_recalib_ran,
+            "grad_clip_norm": GRAD_CLIP_NORM, "nan_batches_skipped": nan_batches,
+            "grad_clipped_steps": clipped_steps, "optimizer_steps": opt_steps,
+            "empty_accum_groups": empty_groups,
+            # In OPTIMIZER steps. The legacy value is 35 at every batch size — see the
+            # warm_iters note. Recorded so a re-run's schedule is auditable from
+            # metrics.json instead of re-derived from batch/accum.
+            "warmup_opt_steps": warm_opt_steps, "amp_dtype": amp_dtype,
             "body_trainable_params": body_tr, "body_frozen_params": body_fz}
+
+
+def _ckpt_num_fg_classes(ckpt, probe) -> int:
+    """Foreground-class count a checkpoint was TRAINED with, read off the head.
+
+    Needed because build_model otherwise follows the SINGLE_CLASS module flag, which
+    is False in any external scorer (ap_compare imports this module without calling
+    run()). A single-class checkpoint would then be loaded into a 2-class head and
+    die on a size mismatch. Reading the shape also works for the four single-class
+    runs that were saved before `single_class` was recorded in the checkpoint."""
+    sd = ckpt["state_dict"]
+    if "head.classification_head.cls_logits.weight" in sd:              # retinanet
+        n_anchors = probe.head.classification_head.num_anchors
+        return sd["head.classification_head.cls_logits.weight"].shape[0] // n_anchors - 1
+    if "roi_heads.box_predictor.cls_score.weight" in sd:                # fasterrcnn
+        return sd["roi_heads.box_predictor.cls_score.weight"].shape[0] - 1
+    raise KeyError("cannot infer class count — unrecognised detector head")
 
 
 def load_model(best_pt: Path, imgsz: int, device):
     import torch
     ckpt = torch.load(best_pt, map_location="cpu", weights_only=False)
     model = build_model(ckpt["arch"], ckpt.get("imgsz", imgsz), pretrained=False)
+    n_fg = ckpt.get("num_fg_classes") or _ckpt_num_fg_classes(ckpt, model)
+    if n_fg != S.NUM_CLASSES:
+        model = build_model(ckpt["arch"], ckpt.get("imgsz", imgsz), pretrained=False,
+                            num_fg_classes=n_fg)
     model.load_state_dict(ckpt["state_dict"])
+    # Read by per_image_for so a single-class model's GROUND TRUTH is merged too —
+    # without it the 37 Obsolete boxes stay class 1, unmatchable by a model that only
+    # emits class 0, and recall is silently scored against 142 boxes instead of 179.
+    model._single_class = (n_fg == 1)
     return model.to(device)
 
 
@@ -698,28 +1141,116 @@ def _environment() -> dict:
     return info
 
 
+def _assert_labels_present(stems: list[str]) -> None:
+    """HALT if the YOLO label files are missing — training on zero boxes is SILENT.
+
+    ⚠ This is the failure that cost a Kaggle session on 2026-08-06. A positives-only
+    detector whose targets are all empty does not crash and does not trip the NaN
+    guard: focal loss with no positives is simply tiny. It reads as
+    `loss=0.0336 → 0.0014, val_active_mAP50=0.0000` and runs the full 120 epochs to
+    a complete, entirely worthless metrics.json. A healthy run starts near loss 1.1.
+
+    The cause was `splits.build_or_load()` returning early on a machine given a
+    pre-built splits.json, so `convert.build_or_load()` never ran. That is fixed at
+    the source; this stays as the tripwire, because "no boxes" has many possible
+    causes (wrong TB_GEN_ROOT, a half-copied dataset) and only one symptom.
+    """
+    missing = [s for s in stems if not splits.label_path(s).exists()]
+    if not missing:
+        return
+    raise SystemExit(
+        f"HALT: {len(missing)}/{len(stems)} training images have NO label file.\n"
+        f"  first missing: {splits.label_path(missing[0])}\n"
+        f"Training would run to completion on empty targets — near-zero loss, "
+        f"mAP 0.000, no crash — and write a metrics.json that looks like a result.\n"
+        f"Labels live in TB_GEN_ROOT/labels_all/ and are generated from the COCO "
+        f"JSON. Check TB_GEN_ROOT is writable and TB_DATA_ROOT points at the "
+        f"TBX11K root, then re-run: python -c \"import sys;sys.path.insert(0,'.');"
+        f"from yolo_common import convert;print(convert.build_or_load()['n_images'])\"")
+
+
+# ── which images to train on / evaluate against ───────────────────────────────
+def _resolve_split(args, smoke: bool):
+    """(split, train_stems, val_stems, eval_items, fold_meta) for this run.
+
+    Two modes, and they answer different questions:
+
+    * DEFAULT — the frozen `splits.json` and its sealed 360 blackbox (121 tb +
+      120 sick + 120 healthy). One fixed test set; the negatives are present, so
+      the screening / false-alarm block is meaningful.
+    * `--fold i` — one outer fold of the rotating k-way partition built by
+      `yolo_common/kfold.py`. Across the k runs every one of the ~799 positives
+      is tested exactly once, so the test set is the whole positive set instead
+      of 121 images.
+
+    ⚠ Fold test sets are POSITIVES-ONLY (kfold.py:170), so under `--fold` the
+      screening rows are all-zero by construction, not by merit. False-alarm
+      numbers only exist on the sealed 360 — never quote them from a fold run.
+    ⚠ This does NOT touch splits.json. The folds are a separate partition with
+      their own frozen folds.json; the frozen split stays byte-identical.
+    """
+    if getattr(args, "fold", None) is None:
+        split = splits.build_or_load()
+        train_stems = list(split["train_ids"])
+        val_stems = list(split["val_ids"])
+        items = splits.blackbox(split)
+        if smoke:
+            train_stems = train_stems[:S.SMOKE_SUBSET]
+            val_stems = val_stems[:4]
+            items = ([it for it in items if it[2] == "tb"][:6]
+                     + [it for it in items if it[2] == "sick"][:4]
+                     + [it for it in items if it[2] == "healthy"][:4])
+        return split, train_stems, val_stems, items, None
+
+    from yolo_common import kfold
+    k = args.k
+    if not (0 <= args.fold < k):
+        raise SystemExit(f"--fold must be in [0, {k}); got {args.fold}")
+    folds_data = kfold.build_or_load_folds(k, S.SEED)
+    part = kfold.fold_partition(folds_data, args.fold, seed=S.SEED,
+                                inner_val_frac=args.inner_val_frac, smoke=smoke)
+    # split_like carries test_positive_ids only — that is all evaluate_tv() and
+    # the AP pass need. No YOLO tree is materialised: the torchvision Dataset
+    # takes stem lists directly, so materialise_fold() is the YOLO path's problem.
+    split, items = kfold.fold_eval_inputs(part)
+    meta = {"fold": args.fold, "k": k, "folds_file": str(kfold.FOLDS_JSON),
+            "fold_seed": S.SEED, "inner_val_frac": args.inner_val_frac,
+            "fold_sizes": folds_data["fold_sizes"],
+            "n_positives_all_folds": folds_data["n_positives"],
+            "eval_scope": "rotating test fold, POSITIVES-ONLY (screening rows are "
+                          "zero by construction — use the sealed 360 for those)"}
+    return split, part["train"], part["inner_val"], items, meta
+
+
 # ── top-level run (called by the two thin experiment scripts) ─────────────────
 def run(arch: str, args) -> dict:
+    global SINGLE_CLASS
+    SINGLE_CLASS = bool(getattr(args, "single_class", False))
     device = resolve_device(args.device)
-    tag = args.name or f"{arch}_s{S.SEED}"
+    # ⚠ the fold MUST be in the default tag: without it all k folds default to
+    # the same name and each one silently overwrites the last (this module's
+    # scripts have already lost a recorded run that way — see retinanet.py).
+    fold_sfx = "" if getattr(args, "fold", None) is None else f"_fold{args.fold}"
+    tag = args.name or f"{arch}{fold_sfx}_s{S.SEED}"
     smoke = S.SMOKE
 
     print(f"\n████ {tag}  (arch={arch}, imgsz={args.imgsz}, batch={args.batch}, "
           f"epochs={args.epochs}, aug={args.aug}, lr={args.lr}, device={device}, "
-          f"smoke={smoke}) ████\n")
+          f"smoke={smoke}, single_class={SINGLE_CLASS}) ████\n")
+    if SINGLE_CLASS:
+        print("  [single-class] Active+Obsolete merged → 'Lesion'; head has 1 foreground "
+              "class; eval GT merged too (179 boxes, not 142). Reports under key 'lesion'.\n")
 
-    split = splits.build_or_load()
-    train_stems = list(split["train_ids"])
-    val_stems = list(split["val_ids"])
-    items = splits.blackbox(split)
-    if smoke:
-        train_stems = train_stems[:S.SMOKE_SUBSET]
-        val_stems = val_stems[:4]
-        items = ([it for it in items if it[2] == "tb"][:6]
-                 + [it for it in items if it[2] == "sick"][:4]
-                 + [it for it in items if it[2] == "healthy"][:4])
+    split, train_stems, val_stems, items, fold_meta = _resolve_split(args, smoke)
+    _assert_labels_present(train_stems)
+    if fold_meta:
+        print(f"  [kfold] fold {fold_meta['fold']}/{fold_meta['k'] - 1}  "
+              f"sizes={fold_meta['fold_sizes']} (Σ={fold_meta['n_positives_all_folds']} "
+              f"positives, each tested exactly once across the {fold_meta['k']} runs)")
+        print("  [kfold] test fold is POSITIVES-ONLY → screening/false-alarm rows "
+              "are zero by construction, not by merit.")
     print(f"  train_positives={len(train_stems)} val_positives={len(val_stems)} "
-          f"sealed_eval_items={len(items)}\n")
+          f"{'fold_test_items' if fold_meta else 'sealed_eval_items'}={len(items)}\n")
 
     out_dir = S.RESULTS_ROOT / tag
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -734,12 +1265,14 @@ def run(arch: str, args) -> dict:
                backbone_weights=getattr(args, "backbone_weights", None),
                freeze_bn=getattr(args, "freeze_bn", False),
                bn_recalib=getattr(args, "bn_recalib", 0),
-               trainable_layers=getattr(args, "trainable_layers", None))
+               trainable_layers=getattr(args, "trainable_layers", None),
+               warmup_steps=getattr(args, "warmup_steps", 0),
+               amp_dtype=getattr(args, "amp_dtype", "fp16"))
     print(f"  best.pt → {tr['best_pt']}  (best val Active mAP50 {tr['best_val_map50']:.4f} "
           f"@ ep{tr['best_epoch']}; ran {tr['epochs_ran']}/{tr['epochs_cap']}, "
           f"eff_batch={tr['eff_batch']})\n")
 
-    print("══ evaluate on the sealed 360 ══")
+    print(f"══ evaluate on {'the rotating test fold' if fold_meta else 'the sealed 360'} ══")
     t0 = time.time()
     model = load_model(tr["best_pt"], args.imgsz, device)
     metric_block = evaluate_tv(model, split, items, device)
@@ -753,13 +1286,33 @@ def run(arch: str, args) -> dict:
                    "best_epoch": tr["best_epoch"], "patience": patience,
                    "batch": args.batch, "accum": accum, "eff_batch": tr["eff_batch"],
                    "lr": args.lr, "aug": args.aug,
+                   # True => detection block is keyed "lesion" and scored on 179
+                   # merged GT boxes. NEVER put such a run's mAP50 on the Active board.
+                   "single_class": SINGLE_CLASS,
                    "augmentation": args.aug != "off", "amp": device.type == "cuda",
+                   # ⚠ Both added 2026-08-05 with legacy defaults. A run WITHOUT these
+                   # keys is fp16 + a 35-optimizer-step warmup; do not assume otherwise.
+                   "amp_dtype": tr.get("amp_dtype"),
+                   "warmup_opt_steps": tr.get("warmup_opt_steps"),
                    "pretrained": "COCO_V1", "min_max_size": args.imgsz,
                    # Provenance for the SSL arm: which backbone, and whether its BN
                    # statistics survived the fine-tune (they do NOT at batch 2 unless
                    # freeze_bn is on — see freeze_backbone_bn()).
                    "backbone_init": (tr.get("backbone_init") or "COCO_V1"),
                    "freeze_bn": getattr(args, "freeze_bn", False),
+                   # See the note on the same keys in train()'s return: without these,
+                   # "was the control treated identically?" cannot be answered from a
+                   # results folder, only from a stdout line that is absent on the arm
+                   # that skipped it. bn_recalib_images == 0 means it did NOT run.
+                   "bn_recalib_requested": tr.get("bn_recalib_requested"),
+                   "bn_recalib_images": tr.get("bn_recalib_images"),
+                   "grad_clip_norm": tr.get("grad_clip_norm"),
+                   "grad_clipped_steps": tr.get("grad_clipped_steps"),
+                   "optimizer_steps": tr.get("optimizer_steps"),
+                   "nan_batches_skipped": tr.get("nan_batches_skipped"),
+                   # >0 means a whole accumulation group was lost to the NaN guard, so
+                   # that step never happened. Reads as 0 on every healthy run.
+                   "empty_accum_groups": tr.get("empty_accum_groups"),
                    # None == torchvision default (3 with pretrained weights). Recorded
                    # explicitly so a freeze-ladder row can never be confused with the
                    # default; retinanet_s0/fasterrcnn_s0 predate the flag and were at 3.
@@ -770,17 +1323,25 @@ def run(arch: str, args) -> dict:
                    "ap_note": "self-contained COCO-style AP@0.5 (see tv_detect.py); "
                               "re-score YOLO via rescore_yolo() for identical-code compare",
                    "conf_thresholds": S.CONF_THRESHOLDS},
-        "dataset": {"splits_file": str(S.SPLITS_JSON), "split_seed": split["seed"],
-                    "train_positives": len(train_stems), "val_positives": len(val_stems),
-                    "blackbox": {"tb": split["counts"]["test_positives"],
-                                 "sick_non_tb": split["counts"]["blackbox_sick"],
-                                 "healthy": split["counts"]["blackbox_healthy"]},
-                    "class_map": {"0": "ActiveTuberculosis", "1": "ObsoletePulmonaryTuberculosis"}},
+        "dataset": {"train_positives": len(train_stems), "val_positives": len(val_stems),
+                    # ⚠ Exactly one of `blackbox` / `kfold` is present, and which one
+                    # says what the headline AP was scored on. `kfold` => the rotating
+                    # POSITIVES-ONLY test fold, so the screening block is meaningless
+                    # there; aggregate those runs with exp5_kfold.py --aggregate, and
+                    # never table a fold number beside a sealed-360 number.
+                    **({"kfold": fold_meta} if fold_meta else
+                       {"splits_file": str(S.SPLITS_JSON), "split_seed": split["seed"],
+                        "blackbox": {"tb": split["counts"]["test_positives"],
+                                     "sick_non_tb": split["counts"]["blackbox_sick"],
+                                     "healthy": split["counts"]["blackbox_healthy"]}}),
+                    "class_map": ({"0": "Lesion (Active+Obsolete merged)"} if SINGLE_CLASS
+                                  else {"0": "ActiveTuberculosis",
+                                        "1": "ObsoletePulmonaryTuberculosis"})},
         "environment": _environment(),
         # The learning curve, so a finished run can be re-read without its stdout.
         # `history` duplicates history.jsonl on purpose: the jsonl survives a killed
         # run, this survives a deleted scratch dir.
-        "training": {"best_val_active_map50": round(float(tr["best_val_map50"]), 5),
+        "training": {f"best_val_{headline_key()}_map50": round(float(tr["best_val_map50"]), 5),
                      "best_epoch": tr["best_epoch"], "epochs_ran": tr["epochs_ran"],
                      "history": tr.get("history", [])},
         "metrics": metric_block,
@@ -798,10 +1359,29 @@ def run(arch: str, args) -> dict:
     (out_dir / "summary.txt").write_text(metrics.summary_text(report))
     print(f"\n→ {out_dir}/metrics.json\n→ {out_dir}/summary.txt\n")
     print((out_dir / "summary.txt").read_text())
-    ours = metric_block["detection"]["active"]["mAP50"]
-    anchor = "YOLO geo 0.685" if args.aug == "geo" else "YOLO champion(mosaic_mixup) 0.745"
-    print(f"\nCOMPARE ({arch}, aug={args.aug}): Active mAP50 = {ours:.3f} (this AP code)  vs  "
-          f"{anchor} (Ultralytics AP).  [champion 0.745 used mosaic_mixup = separate arm]")
+    ours = metric_block["detection"][headline_key()]["mAP50"]
+    if fold_meta:
+        # Every board anchor below is a sealed-360 number. A fold is a DIFFERENT
+        # test set (and a different size), so printing them side by side would
+        # invite exactly the comparison that is invalid. One fold alone means
+        # little anyway — the reportable quantity is the mean±std over all k.
+        print(f"\nFOLD {fold_meta['fold']}/{fold_meta['k'] - 1} ({arch}, aug={args.aug}, "
+              f"{'SINGLE-CLASS' if SINGLE_CLASS else '2-class'}): "
+              f"{headline_key()} mAP50 = {ours:.3f} on {len(items)} held-out positives.  "
+              f"⚠ NOT comparable to any sealed-360 cell on the board — different test "
+              f"set. Run all {fold_meta['k']} folds and report mean±std.")
+    elif SINGLE_CLASS:
+        # ⚠ NOT comparable to any Active mAP50 on the board — different GT (179
+        # lesion boxes vs 142 Active). The anchors are the 2-class models scored
+        # class-agnostically on the same 179 (ap_compare_screen_v2 preds, NMS@0.65).
+        print(f"\nCOMPARE ({arch}, aug={args.aug}, SINGLE-CLASS): Lesion mAP50 = {ours:.3f}  "
+              f"vs 2-class models merged post-hoc: rn_cocoinit 0.810 · rn_mosaicmix 0.841 · "
+              f"rn_cocovindr 0.851 · rn_byolvindr 0.846.  "
+              f"⚠ Do NOT compare this to Active mAP50 (0.758 etc) — different denominator.")
+    else:
+        anchor = "YOLO geo 0.685" if args.aug == "geo" else "YOLO champion(mosaic_mixup) 0.745"
+        print(f"\nCOMPARE ({arch}, aug={args.aug}): Active mAP50 = {ours:.3f} (this AP code)  vs  "
+              f"{anchor} (Ultralytics AP).  [champion 0.745 used mosaic_mixup = separate arm]")
     return report
 
 
@@ -813,9 +1393,58 @@ def add_common_args(ap):
     ap.add_argument("--batch", type=int, default=2, help="6 GB fits ~2 for ResNet50-FPN@512; drop to 1 on OOM")
     ap.add_argument("--accum", type=int, default=8, help="grad-accum steps → effective batch = batch×accum (default 16)")
     ap.add_argument("--lr", type=float, default=0.01, help="SGD lr for the effective batch (warmup+cosine)")
-    ap.add_argument("--aug", choices=["geo", "hflip", "off"], default="geo",
-                    help="geo = matches YOLO's _GEO level (comparable to our YOLO geo runs); "
-                         "mosaic/mixup is a SEPARATE arm (torchvision lacks it)")
+    ap.add_argument("--aug", choices=["geo", "hflip", "off", "mosaic", "mosaic_mixup"],
+                    default="geo",
+                    help="geo = matches YOLO's _GEO level (comparable to our YOLO geo runs). "
+                         "mosaic = geo + a 4-image composite built in the Dataset; "
+                         "mosaic_mixup adds a p=0.1 double exposure — the recipe that beat "
+                         "geo by +0.052 (COCO units) on the YOLO arm. See the mosaic block "
+                         "in tv_detect.py: same shape as Ultralytics', NOT a port, and with "
+                         "no close_mosaic.")
+    ap.add_argument("--single-class", action="store_true",
+                    default=os.environ.get("SINGLE_CLASS", "") == "1",
+                    help="LESION-FINDER mode: merge ActiveTuberculosis + "
+                         "ObsoletePulmonaryTuberculosis into one 'Lesion' class, in the "
+                         "training targets AND the eval GT. The head gets 1 foreground "
+                         "class instead of 2. For the detector's role as stage 2 of a "
+                         "detector->crop-classifier pipeline, where active-vs-obsolete is "
+                         "someone else's job. ⚠ Reports under the key 'lesion', and its "
+                         "mAP50 is scored on 179 GT boxes — NOT comparable to the 142-box "
+                         "Active mAP50 on the board. Env: SINGLE_CLASS=1")
+    ap.add_argument("--warmup-steps", type=int,
+                    default=int(os.environ.get("WARMUP_STEPS", "0")),
+                    help="linear LR warmup length in OPTIMIZER steps (not micro-batches). "
+                         "0 = legacy: one epoch of micro-batches, which on 559 images is "
+                         "only 35 optimizer steps at any batch size — detectron2's "
+                         "RetinaNet R50-FPN uses 1000 at the same lr and effective batch. "
+                         "That 35-step ramp is the mosaic-NaN divergence trigger "
+                         "(2026-08-05); 500 is the recommended value. Env: WARMUP_STEPS")
+    ap.add_argument("--amp-dtype", choices=["fp16", "bf16", "off"],
+                    default=os.environ.get("AMP_DTYPE", "fp16"),
+                    help="autocast dtype. fp16 (default, what every recorded run used) "
+                         "overflows at 65504 — with --freeze-bn the trunk cannot "
+                         "renormalise, and the crashed mosaic runs peaked at 107062 in "
+                         "fp32 while their fp32 LOSS was healthy. bf16 has fp32's exponent "
+                         "range and needs no GradScaler. Env: AMP_DTYPE")
+    ap.add_argument("--fold", type=int, default=(int(os.environ["KFOLD_FOLD"])
+                                                 if os.environ.get("KFOLD_FOLD") else None),
+                    help="run one outer fold of the rotating k-way CV over ALL ~799 "
+                         "positives (yolo_common/kfold.py) instead of the frozen split. "
+                         "Across the k folds every positive is tested exactly once, so "
+                         "the test set is 799 images rather than the sealed 121 — that is "
+                         "the point of it. ⚠ Fold test sets are POSITIVES-ONLY, so "
+                         "screening/false-alarm rows are zero by construction and only "
+                         "the sealed 360 can produce them. ⚠ A fold number is NOT "
+                         "comparable to a sealed-360 cell. Env: KFOLD_FOLD")
+    ap.add_argument("--k", type=int, default=int(os.environ.get("KFOLD_K", "5")),
+                    help="folds in the partition. Must match across the k runs — "
+                         "kfold.py halts if an existing folds.json disagrees on (seed, k). "
+                         "Env: KFOLD_K")
+    ap.add_argument("--inner-val-frac", type=float,
+                    default=float(os.environ.get("KFOLD_INNER_VAL_FRAC", "0.15")),
+                    help="stratified slice of the k-1 training folds held out to select "
+                         "best.pt. Selection only — never a reported number. "
+                         "Env: KFOLD_INNER_VAL_FRAC")
     ap.add_argument("--device", default=None, help="0 | cpu (default settings.DEVICE)")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--name", default=None, help="run/output name (default <arch>_s<seed>)")
@@ -871,7 +1500,9 @@ def per_image_for(kind: str, weights, items, imgsz: int = 512, device=None) -> l
         return metrics.collect(YOLO(str(weights)), items, imgsz)
     if kind in ("tv", "retinanet", "fasterrcnn"):
         dev = resolve_device(device)
-        return infer_per_image(load_model(weights, imgsz, dev), items, dev)
+        model = load_model(weights, imgsz, dev)
+        return infer_per_image(model, items, dev,
+                               single_class=getattr(model, "_single_class", False))
     raise ValueError(f"unknown kind {kind!r} (yolo | retinanet | fasterrcnn | tv)")
 
 

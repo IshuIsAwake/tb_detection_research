@@ -157,20 +157,21 @@ def _loc_block(pairs) -> dict:
     }
 
 
-def localization(per_image, conf=S.LOC_CONF) -> dict:
-    all_pairs, by_cls = [], {0: [], 1: []}
+def localization(per_image, conf=S.LOC_CONF, class_keys=None) -> dict:
+    """`class_keys` names the per-class blocks in order; None keeps the 2-class
+    default. Single-class runs pass ["lesion"] (see tv_detect.SINGLE_CLASS)."""
+    keys = list(class_keys) if class_keys else ["active", "obsolete"]
+    all_pairs, by_cls = [], {i: [] for i in range(len(keys))}
     for im in per_image:
         if im["group"] != "tb":
             continue
         pairs, _ = _match(im["gts"], im["preds"], conf)
         all_pairs += pairs
         for pr in pairs:
-            by_cls[pr[2]].append(pr)
-    return {
-        "overall": _loc_block(all_pairs),
-        "active": _loc_block(by_cls[0]),
-        "obsolete": _loc_block(by_cls[1]),
-    }
+            if pr[2] in by_cls:
+                by_cls[pr[2]].append(pr)
+    return {"overall": _loc_block(all_pairs),
+            **{k: _loc_block(by_cls[i]) for i, k in enumerate(keys)}}
 
 
 # ── screening ─────────────────────────────────────────────────────────────────
@@ -213,6 +214,91 @@ def screening(per_image, confs) -> dict:
     return out
 
 
+# ── matched-sensitivity screening (calibration-free cross-model compare) ──────
+# WHY, since screening() above already exists: screening() reads false alarms at
+# a FIXED confidence, which is only meaningful WITHIN one model. Confidence is
+# not a shared unit across architectures (RetinaNet = focal-loss sigmoid, Faster
+# R-CNN = softmax over classes+background, YOLO = objectness x class), so at
+# "conf 0.25" two models sit at different points on their own ROC curves — the
+# exp5/exp6 fixed-conf trap. These functions fix an OUTPUT (sensitivity) and read
+# the other output (specificity), which is how a screening test is actually
+# specified: WHO's TPP for a TB triage test is >=90% sensitivity, >=70% specificity.
+
+def image_scores(per_image, cls=None) -> list[tuple[str, float]]:
+    """(group, image-level score) per image — the score a screener thresholds on,
+    i.e. the most confident box in the image. cls=None pools all classes (matches
+    screening()); cls=0 counts only ActiveTuberculosis as grounds to flag.
+    An image with no predictions scores 0.0 and is never flagged."""
+    out = []
+    for im in per_image:
+        preds = im["preds"] if cls is None else [p for p in im["preds"] if p[0] == cls]
+        out.append((im["group"], max((p[1] for p in preds), default=0.0)))
+    return out
+
+
+def auroc(scores, pos="tb", neg=("sick", "healthy")) -> float:
+    """Image-level AUROC from (group, score) pairs — threshold-free, so it is the
+    screening analogue of mAP: it compares models without picking an operating
+    point at all. Mann-Whitney U with tie-corrected ranks."""
+    p = [s for g, s in scores if g == pos]
+    n = [s for g, s in scores if g in neg]
+    if not p or not n:
+        return 0.0
+    allv = sorted(p + n)
+    ranks = {}
+    i = 0
+    while i < len(allv):                       # average ranks over ties
+        j = i
+        while j + 1 < len(allv) and allv[j + 1] == allv[i]:
+            j += 1
+        r = (i + j) / 2 + 1
+        ranks[allv[i]] = r
+        i = j + 1
+    u = sum(ranks[s] for s in p) - len(p) * (len(p) + 1) / 2
+    return round(u / (len(p) * len(n)), 4)
+
+
+def matched_sensitivity(per_image, targets=(0.80, 0.90, 0.95), cls=None) -> dict:
+    """For each target sensitivity, the threshold THAT model needs to reach it,
+    and the false alarms it pays there. Threshold = the k-th highest TB image
+    score for k = ceil(target * n_tb) — the highest threshold still meeting the
+    target, i.e. the best specificity available at that sensitivity.
+
+    `reachable` is False when the model cannot hit the target at any threshold
+    (some TB images produce no box at all); the row then reports its ceiling."""
+    import math
+    scores = image_scores(per_image, cls=cls)
+    n = {g: sum(1 for gg, _ in scores if gg == g) for g in ("tb", "sick", "healthy")}
+    tb_pos = sorted([s for g, s in scores if g == "tb" and s > 0], reverse=True)
+
+    out = {}
+    for t in targets:
+        k = math.ceil(t * n["tb"]) if n["tb"] else 0
+        reachable = 0 < k <= len(tb_pos)
+        thr = tb_pos[k - 1] if reachable else (tb_pos[-1] if tb_pos else 1.0)
+
+        def flagged(group):
+            return sum(1 for g, s in scores if g == group and s >= thr and s > 0)
+
+        tb_f, h_f, s_f = flagged("tb"), flagged("healthy"), flagged("sick")
+        n_neg = n["sick"] + n["healthy"]
+        out[f"{t:.2f}"] = {
+            "threshold": round(float(thr), 4),
+            "sensitivity": round(tb_f / n["tb"], 4) if n["tb"] else 0.0,
+            "tb_flagged": f"{tb_f}/{n['tb']}",
+            "specificity": round(1 - (h_f + s_f) / n_neg, 4) if n_neg else 0.0,
+            "healthy_false_alarm": round(h_f / n["healthy"], 4) if n["healthy"] else 0.0,
+            "healthy_flagged": f"{h_f}/{n['healthy']}",
+            "sick_false_alarm": round(s_f / n["sick"], 4) if n["sick"] else 0.0,
+            "sick_flagged": f"{s_f}/{n['sick']}",
+            "reachable": reachable,
+        }
+    out["auroc"] = {"vs_all_negatives": auroc(scores),
+                    "vs_healthy": auroc(scores, neg=("healthy",)),
+                    "vs_sick_non_tb": auroc(scores, neg=("sick",))}
+    return out
+
+
 # ── by lesion size ────────────────────────────────────────────────────────────
 
 def by_size(per_image, conf=S.LOC_CONF, img_area=512 * 512) -> dict:
@@ -241,7 +327,8 @@ def by_size(per_image, conf=S.LOC_CONF, img_area=512 * 512) -> dict:
 
 # ── confusion matrix on the TEST positives ────────────────────────────────────
 
-def confusion_matrix(per_image, conf=S.LOC_CONF, iou_thr=S.IOU_MATCH) -> dict:
+def confusion_matrix(per_image, conf=S.LOC_CONF, iou_thr=S.IOU_MATCH,
+                     class_names=None) -> dict:
     """Detection confusion matrix on the sealed TEST positives, mirroring the
     Ultralytics layout (rows = PREDICTED, cols = TRUE, last index = background)
     — but on the blackbox, not val. Matching is CLASS-AGNOSTIC (highest-conf
@@ -252,7 +339,8 @@ def confusion_matrix(per_image, conf=S.LOC_CONF, iou_thr=S.IOU_MATCH) -> dict:
       matrix[bg][true_cls]  = false negative (GT missed)
       matrix[bg][bg]        = undefined for detection (no true negatives)
     """
-    n = S.NUM_CLASSES
+    names = list(class_names) if class_names else list(S.CLASS_NAMES)
+    n = len(names)
     BG = n
     M = [[0] * (n + 1) for _ in range(n + 1)]
     for im in per_image:
@@ -277,7 +365,7 @@ def confusion_matrix(per_image, conf=S.LOC_CONF, iou_thr=S.IOU_MATCH) -> dict:
         for j, (gc, _) in enumerate(gts):
             if j not in used:
                 M[BG][gc] += 1                       # FN → pred = background
-    return {"labels": S.CLASS_NAMES + ["background"], "matrix": M,
+    return {"labels": names + ["background"], "matrix": M,
             "conf": conf, "iou": iou_thr, "axes": "rows=predicted, cols=true"}
 
 
@@ -308,13 +396,19 @@ def save_confusion_png(cm: dict, path) -> None:
 
 # ── detection AP via Ultralytics val ──────────────────────────────────────────
 
-def detection_ap(model, imgsz, split, root=None, augment=False) -> dict:
+def detection_ap(model, imgsz, split, root=None, augment=False, pairs=None) -> dict:
     """Build a temp val tree on the test positives and run model.val().
 
     `root` lets a caller (e.g. exp5 k-fold) point at a fold-local tree; default
     is the shared `_eval_testpos`. The val dirs are cleared first so a varying
     set of test stems (different folds) can't leave stale links behind.
-    `augment=True` runs the AP with test-time augmentation (TTA), inference-only."""
+    `augment=True` runs the AP with test-time augmentation (TTA), inference-only.
+
+    `pairs` (cp_exp/probe_shortcut) evaluates an EXPLICIT list of
+    (image_path, label_path) instead of the split's test positives — e.g. the
+    held-out synthetic composites. Pass a distinct `root` with it so the shared
+    `_eval_testpos` tree isn't clobbered. When None (every exp1-10 caller) the
+    behaviour is exactly as before: the frozen split's test positives."""
     from yolo_common import splits as SP
     import shutil
 
@@ -323,9 +417,13 @@ def detection_ap(model, imgsz, split, root=None, augment=False) -> dict:
         d = root / sub
         if d.exists():
             shutil.rmtree(d)
-    for stem in split["test_positive_ids"]:
-        SP._link(SP.tb_image_path(stem), root / "images" / "val" / f"{stem}.png")
-        SP._link(SP.label_path(stem), root / "labels" / "val" / f"{stem}.txt")
+    if pairs is None:
+        pairs = [(SP.tb_image_path(stem), SP.label_path(stem))
+                 for stem in split["test_positive_ids"]]
+    for img_p, lbl_p in pairs:
+        img_p, lbl_p = Path(img_p), Path(lbl_p)
+        SP._link(img_p, root / "images" / "val" / img_p.name)
+        SP._link(lbl_p, root / "labels" / "val" / f"{img_p.stem}.txt")
     yaml = root / "data.yaml"
     yaml.write_text(
         f"path: {root.resolve()}\ntrain: images/val\nval: images/val\n"
@@ -374,6 +472,23 @@ def evaluate(model, imgsz, split, items, eval_root=None, augment=False) -> dict:
 
 # ── human-readable summary ────────────────────────────────────────────────────
 
+def _n_eval_positives(m: dict) -> str:
+    """How many TB positives the AP above was actually scored on.
+
+    ⚠ This header used to be the literal string "120 test positives" — wrong even
+    for the frozen split, whose sealed test set is 121, and wrong by 40 under
+    k-fold CV (160 per fold). Only the label was ever wrong; AP is computed from
+    the real per-image data. Derived here from the screening block's `tb_flagged`
+    denominator ("119/121"), which is the eval set's own count, so it stays right
+    for folds and for any future eval scope without another field to keep in sync.
+    """
+    for row in (m.get("screening") or {}).values():
+        flagged = (row or {}).get("tb_flagged", "")
+        if "/" in str(flagged):
+            return str(flagged).split("/")[1]
+    return "?"
+
+
 def summary_text(report: dict) -> str:
     m = report["metrics"]
     L = [f"# {report['experiment']}  ({report['config']['model']} @ "
@@ -382,15 +497,17 @@ def summary_text(report: dict) -> str:
          f"  amp={report['config']['amp']}", ""]
 
     d = m["detection"]
-    L += ["== detection (AP on 120 test positives) =="]
-    for k in ("overall", "active", "obsolete"):
+    L += [f"== detection (AP on {_n_eval_positives(m)} test positives) =="]
+    # Iterate the blocks actually present: 2-class emits overall/active/obsolete,
+    # single-class emits overall/lesion. Insertion order is the report order.
+    for k in d:
         b = d[k]
         L.append(f"  {k:<9} mAP50={b['mAP50']:.3f} mAP50-95={b['mAP50_95']:.3f} "
                  f"P={b['precision']:.3f} R={b['recall']:.3f}")
 
     loc = m["localization"]
     L += ["", "== localisation on matched pairs (conf>=0.25, IoU>=0.5) =="]
-    for k in ("overall", "active", "obsolete"):
+    for k in loc:
         b = loc[k]
         L.append(f"  {k:<9} IoU={b['iou']:.3f} IoP={b['iop']:.3f} IoG={b['iog']:.3f} "
                  f"(n_matched={b['n_matched']})")

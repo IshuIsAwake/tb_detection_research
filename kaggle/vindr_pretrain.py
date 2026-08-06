@@ -274,10 +274,49 @@ def materialise(labels: dict[str, list[str]], img_index: dict[str, Path]) -> Pat
 
 
 # ── Train ─────────────────────────────────────────────────────────────────────
+def _verify_init(model, model_path: str) -> None:
+    """PROVE which backbone actually loaded — so a custom init (e.g. a BYOL .pt)
+    is NEVER silently replaced by COCO. Ultralytics loads .pt weights via
+    YOLO(path) and `pretrained` is a no-op on that path, but a paid Kaggle run
+    deserves a definitive check rather than trust. Prints a backbone fingerprint
+    and, for a custom init, contrasts it against COCO yolov8n.
+
+    ⚠ THE DIFFERENT-vs-COCO CHECK IS NOT ENOUGH ON ITS OWN. On 2026-07-27 a BYOL run
+    collapsed and saved an ALL-NaN backbone. NaN is trivially "different from COCO", so
+    this guard printed `DIFFERENT ✓ custom init is loaded` and would have green-lit a
+    full Kaggle job on unusable weights. Finiteness is checked FIRST, and it HALTS."""
+    import torch
+    from ultralytics import YOLO
+    bb = torch.cat([p.detach().flatten().double()
+                    for p in model.model.model[:10].parameters()])   # backbone = layers 0..9
+    print(f"[init] MODEL={model_path}")
+    n_nan, n_inf = int(torch.isnan(bb).sum()), int(torch.isinf(bb).sum())
+    if n_nan or n_inf:
+        raise SystemExit(
+            f"HALT: init {model_path} has {n_nan} NaN + {n_inf} Inf of {bb.numel()} backbone "
+            f"params. This is what a COLLAPSED SSL run produces. It would pass a naive "
+            f"'differs from COCO' check — do not train on it.")
+    print(f"[init] backbone[:10] params={bb.numel()} sum={bb.sum().item():.4f} finite ✓")
+    if Path(model_path).name != "yolov8n.pt":
+        try:
+            coco = torch.cat([p.detach().flatten().double()
+                              for p in YOLO("yolov8n.pt").model.model[:10].parameters()])
+            same = bb.numel() == coco.numel() and torch.allclose(bb, coco)
+            print("[init] vs COCO yolov8n backbone → "
+                  + ("⚠⚠ IDENTICAL — custom init was IGNORED, do NOT trust this run!"
+                     if same else "DIFFERENT ✓ custom init is loaded"))
+        except Exception as e:                      # offline / no COCO cache → skip, not fatal
+            print(f"[init] (COCO contrast skipped: {e})")
+
+
 def train(yaml_path: Path):
     from ultralytics import YOLO
-    run_name = f"vindr_yolov8n_{AUG}{IMGSZ}"   # carries aug + resolution; never collide
+    custom_init = Path(MODEL).name != "yolov8n.pt"
+    init_tag = "" if not custom_init else (
+        "_from_byol" if "byol" in Path(MODEL).stem.lower() else "_from_custom")
+    run_name = f"vindr_yolov8n_{AUG}{IMGSZ}{init_tag}"   # aug+res+init source; never collide
     model = YOLO(MODEL)
+    _verify_init(model, MODEL)                          # landmine guard (BYOL→VinDr etc.)
     model.train(
         data=str(yaml_path),
         imgsz=IMGSZ,
@@ -290,7 +329,10 @@ def train(yaml_path: Path):
         project=str(PROJECT),
         name=run_name,
         exist_ok=True,
-        pretrained=True,      # start from COCO yolov8n.pt, then learn CXR
+        # COCO start when MODEL=yolov8n.pt; for a custom .pt (BYOL) YOLO(MODEL)
+        # already loaded it — pass its path (not bare True) so intent is explicit
+        # and version-proof, and the neck/head come from that same file.
+        pretrained=(MODEL if custom_init else True),
         optimizer="auto",
         **AUG_KWARGS,
     )
